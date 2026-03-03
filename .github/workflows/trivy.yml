@@ -25,7 +25,7 @@ name: "Trivy Security Scan"
 on:
   push:
     branches: [ main, develop, "**" ]
-  # pull_request:
+  pull_request:
   # The branches below must be a subset of the branches above
   # branches: [ main, master ]
   # paths-ignore:
@@ -97,7 +97,7 @@ jobs:
           file: ./docker/Dockerfile-registration-service
           push: false
           load: true
-          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:trivy-scan
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-registration-service:trivy-scan
 
       # It's also possible to scan your private registry with Trivy's built-in image scan.
       # All you have to do is set ENV vars.
@@ -109,7 +109,7 @@ jobs:
         uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
         with:
           # Path to Docker image
-          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:trivy-scan
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-registration-service:trivy-scan
           format: "table"
           output: "trivy-results3.sarif"
           vuln-type: "os,library"
@@ -125,335 +125,461 @@ jobs:
         with:
           sarif_file: "trivy-results3.sarif"
 
-  # analyze-portal-backend-administration-service:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
+  analyze-portal-backend-administration-service:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
 
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-administration-service:latest"
-  #         format: "table"
-  #         output: "trivy-results4.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-administration-service
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-administration-service:trivy-scan
+
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-administration-service:trivy-scan
+          format: "table"
+          output: "trivy-results4.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
           
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results4.sarif"
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results4.sarif"
 
-  # analyze-portal-backend_marketplace-app-service:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
+  analyze-portal-backend_marketplace-app-service:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-marketplace-app-service:latest"
-  #         format: "table"
-  #         output: "trivy-results5.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
           
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results5.sarif"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-  # analyze-portal-backend_maintenance-service:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-marketplace-app-service
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-marketplace-app-service:trivy-scan
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-maintenance-service:latest"
-  #         format: "table"
-  #         output: "trivy-results6.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-marketplace-app-service:trivy-scan
+          format: "table"
+          output: "trivy-results5.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
           
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results6.sarif"
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results5.sarif"
 
-  # analyze-portal-backend_notification-service:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
+  analyze-portal-backend_maintenance-service:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-notification-service:latest"
-  #         format: "table"
-  #         output: "trivy-results7.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
-
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results7.sarif"
-
-  # analyze-portal-backend-services-service:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
-
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-services-service:latest"
-  #         format: "table"
-  #         output: "trivy-results8.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
           
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results8.sarif"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
-  # analyze-portal-backend-portal-migrations:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-maintenance-service
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-maintenance-service:trivy-scan
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-portal-migrations:latest"
-  #         format: "table"
-  #         output: "trivy-results9.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-maintenance-service:trivy-scan
+          format: "table"
+          output: "trivy-results6.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
           
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results9.sarif"
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results6.sarif"
 
-  # analyze-portal-backend-provisioning-migrations:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
+  analyze-portal-backend_notification-service:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-provisioning-migrations:latest"
-  #         format: "table"
-  #         output: "trivy-results10.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
-
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results10.sarif"
-
-  # analyze-portal-backend_processes-worker:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
-
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-processes-worker:latest"
-  #         format: "table"
-  #         output: "trivy-results11.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
-          
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results11.sarif"
-
-  # analyze-portal-iam_seeding:
-  #   runs-on: ubuntu-latest
-  #   permissions:
-  #     actions: read
-  #     contents: read
-  #     security-events: write
-
-  #   steps:
-  #     - name: Checkout repository
-  #       uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-  #     # It's also possible to scan your private registry with Trivy's built-in image scan.
-  #     # All you have to do is set ENV vars.
-  #     # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
-  #     # You don't need to set ENV vars when downloading from a public repository.
-  #     # For public images, no ENV vars must be set.
-  #     - name: Run Trivy vulnerability scanner
-  #       if: always()
-  #       uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
-  #       with:
-  #         # Path to Docker image
-  #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-iam-seeding:latest"
-  #         format: "table"
-  #         output: "trivy-results12.sarif"
-  #         vuln-type: "os,library"
-  #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
-  #         hide-progress: false
-  #         exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
-  #         limit-severities-for-sarif: true
-  #         version: "v0.69.2"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
       
-  #     - name: Upload Trivy scan results to GitHub Security tab
-  #       if: always()
-  #       uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
-  #       with:
-  #         sarif_file: "trivy-results12.sarif"
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-notification-service
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-notification-service:trivy-scan
+
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-notification-service:trivy-scan
+          format: "table"
+          output: "trivy-results7.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results7.sarif"
+
+  analyze-portal-backend-services-service:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-services-service
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-services-service:trivy-scan
+
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-services-service:trivy-scan
+          format: "table"
+          output: "trivy-results8.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
+          
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results8.sarif"
+
+  analyze-portal-backend-portal-migrations:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-portal-migrations
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-portal-migrations:trivy-scan
+
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-portal-migrations:trivy-scan
+          format: "table"
+          output: "trivy-results9.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
+          
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results9.sarif"
+
+  analyze-portal-backend-provisioning-migrations:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-provisioning-migrations
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-provisioning-migrations:trivy-scan
+
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-provisioning-migrations:trivy-scan
+          format: "table"
+          output: "trivy-results10.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results10.sarif"
+
+  analyze-portal-backend_processes-worker:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-processes-worker
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-processes-worker:trivy-scan
+
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-processes-worker:trivy-scan
+          format: "table"
+          output: "trivy-results11.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
+          
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results11.sarif"
+
+  analyze-portal-iam_seeding:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build Docker image
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: ./docker/Dockerfile-iam-seeding
+          push: false
+          load: true
+          tags: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-iam-seeding:trivy-scan
+
+      # It's also possible to scan your private registry with Trivy's built-in image scan.
+      # All you have to do is set ENV vars.
+      # Docker Hub needs TRIVY_USERNAME and TRIVY_PASSWORD.
+      # You don't need to set ENV vars when downloading from a public repository.
+      # For public images, no ENV vars must be set.
+      - name: Run Trivy vulnerability scanner
+        if: always()
+        uses: aquasecurity/trivy-action@97e0b3872f55f89b95b2f65b3dbab56962816478 # v0.34.2
+        with:
+          # Path to Docker image
+          image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-iam-seeding:trivy-scan
+          format: "table"
+          output: "trivy-results12.sarif"
+          vuln-type: "os,library"
+          severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
+          hide-progress: false
+          exit-code: "1" # Trivy exits with code 1 if vulnerabilities are found, causing the workflow step to fail.
+          limit-severities-for-sarif: true
+          version: "v0.69.2"
+      
+      - name: Upload Trivy scan results to GitHub Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@c793b717bc78562f491db7b0e93a3a178b099162 # v4.32.5
+        with:
+          sarif_file: "trivy-results12.sarif"
