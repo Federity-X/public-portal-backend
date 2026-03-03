@@ -103,7 +103,7 @@ public class CryptoHelperTests
     {
         var key = _fixture.CreateMany<byte>(32).ToArray();
         var data = _fixture.Create<string>();
-        var sut = new CryptoHelper(key, CipherMode.ECB, PaddingMode.None);
+        var sut = new CryptoHelper(key, CipherMode.CBC, PaddingMode.None);
 
         Assert.Throws<ConflictException>(() => sut.Encrypt(data));
     }
