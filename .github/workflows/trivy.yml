@@ -58,7 +58,7 @@ jobs:
         with:
           scan-type: "config"
           hide-progress: false
-          format: "sarif"
+          format: "table"
           output: "trivy-results1.sarif"
           vuln-type: "os,library"
           skip-files: "/src/portalbackend/PortalBackend.Migrations/Seeder/Data/documents.consortia.json"
@@ -110,7 +110,7 @@ jobs:
         with:
           # Path to Docker image
           image-ref: ${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}:trivy-scan
-          format: "sarif"
+          format: "table"
           output: "trivy-results3.sarif"
           vuln-type: "os,library"
           severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -147,7 +147,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-administration-service:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results4.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -184,7 +184,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-marketplace-app-service:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results5.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -221,7 +221,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-maintenance-service:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results6.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -258,7 +258,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-notification-service:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results7.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -295,7 +295,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-services-service:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results8.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -332,7 +332,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-portal-migrations:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results9.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -369,7 +369,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-provisioning-migrations:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results10.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -406,7 +406,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-processes-worker:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results11.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
@@ -443,7 +443,7 @@ jobs:
   #       with:
   #         # Path to Docker image
   #         image-ref: "${{ env.IMAGE_NAMESPACE }}/${{ env.IMAGE_NAME }}-iam-seeding:latest"
-  #         format: "sarif"
+  #         format: "table"
   #         output: "trivy-results12.sarif"
   #         vuln-type: "os,library"
   #         severity: "CRITICAL,HIGH" # While vulnerabilities of all severities are reported in the SARIF output, the exit code and workflow failure are triggered only by these specified severities (CRITICAL or HIGH).
