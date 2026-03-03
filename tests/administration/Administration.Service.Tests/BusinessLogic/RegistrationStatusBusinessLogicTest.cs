@@ -62,7 +62,7 @@ public class RegistrationStatusBusinessLogicTest
         {
             EncryptionConfigs = new EncryptionModeConfig[]
             {
-                new() { Index=0, EncryptionKey=Convert.ToHexString(_fixture.CreateMany<byte>(32).ToArray()), CipherMode=CipherMode.ECB, PaddingMode=PaddingMode.PKCS7 },
+                new() { Index=0, EncryptionKey=Convert.ToHexString(_fixture.CreateMany<byte>(32).ToArray()), CipherMode=CipherMode.CBC, PaddingMode=PaddingMode.PKCS7 },
                 new() { Index=1, EncryptionKey=Convert.ToHexString(_fixture.CreateMany<byte>(32).ToArray()), CipherMode=CipherMode.CBC, PaddingMode=PaddingMode.PKCS7 },
             },
             EncryptionConfigIndex = 1
