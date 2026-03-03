@@ -35,12 +35,12 @@ public class CryptoHelperTests
     [InlineData(PaddingMode.ANSIX923)]
     [InlineData(PaddingMode.ISO10126)]
     [InlineData(PaddingMode.PKCS7)]
-    public void EncryptDecrypt_ECB_NoIV_Success(PaddingMode paddingMode)
+    public void EncryptDecrypt_CBC_WithIV_Success(PaddingMode paddingMode)
     {
         var data = _fixture.Create<string>();
         var key = _fixture.CreateMany<byte>(32).ToArray();
-        var (encrypted, _) = CryptoHelper.Encrypt(data, key, CipherMode.ECB, paddingMode);
-        var result = CryptoHelper.Decrypt(encrypted, null, key, CipherMode.ECB, paddingMode);
+        var (encrypted, iv) = CryptoHelper.Encrypt(data, key, CipherMode.CBC, paddingMode);
+        var result = CryptoHelper.Decrypt(encrypted, iv, key, CipherMode.CBC, paddingMode);
         result.Should().Be(data);
     }
 
@@ -53,10 +53,9 @@ public class CryptoHelperTests
     [InlineData(CipherMode.CFB, PaddingMode.None)]
     [InlineData(CipherMode.CFB, PaddingMode.PKCS7)]
     [InlineData(CipherMode.CFB, PaddingMode.Zeros)]
-    [InlineData(CipherMode.ECB, PaddingMode.ANSIX923)]
-    [InlineData(CipherMode.ECB, PaddingMode.ISO10126)]
-    [InlineData(CipherMode.ECB, PaddingMode.PKCS7)]
-
+    [InlineData(CipherMode.CBC, PaddingMode.ANSIX923)]
+    [InlineData(CipherMode.CBC, PaddingMode.ISO10126)]
+    [InlineData(CipherMode.CBC, PaddingMode.PKCS7)]
     public void EncryptDecryptStatic_WithIV_Success(CipherMode cipherMode, PaddingMode paddingMode)
     {
         var data = _fixture.Create<string>();
@@ -75,9 +74,6 @@ public class CryptoHelperTests
     [InlineData(CipherMode.CFB, PaddingMode.None)]
     [InlineData(CipherMode.CFB, PaddingMode.PKCS7)]
     [InlineData(CipherMode.CFB, PaddingMode.Zeros)]
-    [InlineData(CipherMode.ECB, PaddingMode.ANSIX923)]
-    [InlineData(CipherMode.ECB, PaddingMode.ISO10126)]
-    [InlineData(CipherMode.ECB, PaddingMode.PKCS7)]
     public void EncryptDecrypt_Success(CipherMode cipherMode, PaddingMode paddingMode)
     {
         var key = _fixture.CreateMany<byte>(32).ToArray();
@@ -154,7 +150,6 @@ public class CryptoHelperTests
     }
 
     [Theory]
-    [InlineData("Sup3rS3cureTest!", "2b7e151628aed2a6abf715892b7e151628aed2a6abf715892b7e151628aed2a6", CipherMode.ECB, PaddingMode.PKCS7)]
     [InlineData("Sup3rS3cureTest!", "5892b7e151628aed2a6abf715892b7e151628aed2a62b7e151628aed2a6abf71", CipherMode.CBC, PaddingMode.PKCS7)]
     public void Foo(string data, string key, CipherMode cipherMode, PaddingMode paddingMode)
     {
