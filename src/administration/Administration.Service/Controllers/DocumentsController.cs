@@ -83,7 +83,7 @@ public class DocumentsController : ControllerBase
     /// <response code="404">The document was not found.</response>
     [HttpGet]
     [Route("selfDescription/{documentId}")]
-    [AllowAnonymous]
+    [Authorize(Policy = PolicyTypes.ValidCompany)]
     [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [PublicUrl(CompanyRoleId.SERVICE_PROVIDER, CompanyRoleId.APP_PROVIDER)]
