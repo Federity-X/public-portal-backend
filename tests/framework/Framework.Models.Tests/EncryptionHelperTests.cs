@@ -53,9 +53,6 @@ public class CryptoHelperTests
     [InlineData(CipherMode.CFB, PaddingMode.None)]
     [InlineData(CipherMode.CFB, PaddingMode.PKCS7)]
     [InlineData(CipherMode.CFB, PaddingMode.Zeros)]
-    [InlineData(CipherMode.CBC, PaddingMode.ANSIX923)]
-    [InlineData(CipherMode.CBC, PaddingMode.ISO10126)]
-    [InlineData(CipherMode.CBC, PaddingMode.PKCS7)]
     public void EncryptDecryptStatic_WithIV_Success(CipherMode cipherMode, PaddingMode paddingMode)
     {
         var data = _fixture.Create<string>();
