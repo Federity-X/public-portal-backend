@@ -33,7 +33,7 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [main]
+    branches: [main, feature/IN-195]
     paths:
       - 'src/**'
       - 'tests/**'
