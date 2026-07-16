@@ -24,6 +24,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.HttpClientExtensions;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Validation;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Service;
+using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.DependencyInjection;
 
@@ -42,7 +43,17 @@ public static class IssuerComponentServiceCollectionExtensions
         services.AddCustomHttpClientWithAuthentication<IssuerComponentService>(baseAddress.EndsWith('/') ? baseAddress : $"{baseAddress}/");
         services
             .AddTransient<IIssuerComponentService, IssuerComponentService>()
-            .AddTransient<IIssuerComponentBusinessLogic, IssuerComponentBusinessLogic>();
+            .AddTransient<IIssuerComponentBusinessLogic, IssuerComponentBusinessLogic>()
+            .AddTransient<IIssuerComponentServiceSelector, IssuerComponentServiceSelector>();
+
+        // Keyed registrations for the runtime selector. The DIM/ssi issuer-component is the
+        // historical path for every non-IdentityHub wallet; register it for those keys. The
+        // IdentityHub key is registered by AddIdentityHubService. DIM behaviour is unchanged —
+        // the keyed factory delegates to the unkeyed IIssuerComponentService registered above
+        // (IssuerComponentService, whose HttpClient is a named client, so the concrete type is
+        // not itself DI-resolvable — resolve the interface).
+        services.AddKeyedTransient<IIssuerComponentService>(WalletProviderId.Dim, (sp, _) => sp.GetRequiredService<IIssuerComponentService>());
+        services.AddKeyedTransient<IIssuerComponentService>(WalletProviderId.Custodian, (sp, _) => sp.GetRequiredService<IIssuerComponentService>());
 
         return services;
     }

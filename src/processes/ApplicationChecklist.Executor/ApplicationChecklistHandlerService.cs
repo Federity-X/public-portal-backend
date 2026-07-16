@@ -24,6 +24,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Clearinghouse.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Custodian.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
+using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
@@ -39,6 +40,7 @@ public class ApplicationChecklistHandlerService(
     IClearinghouseBusinessLogic clearinghouseBusinessLogic,
     ISdFactoryBusinessLogic sdFactoryBusinessLogic,
     IDimBusinessLogic dimBusinessLogic,
+    IIdentityHubBusinessLogic identityHubBusinessLogic,
     IIssuerComponentBusinessLogic issuerComponentBusinessLogic,
     IBpnDidResolverBusinessLogic bpnDidResolverBusinessLogic,
     IApplicationActivationService applicationActivationService,
@@ -49,6 +51,7 @@ public class ApplicationChecklistHandlerService(
         new(ProcessStepTypeId.CREATE_BUSINESS_PARTNER_NUMBER_PULL, new(ApplicationChecklistEntryTypeId.BUSINESS_PARTNER_NUMBER, false, bpdmBusinessLogic.HandlePullLegalEntity, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_BUSINESS_PARTNER_NUMBER_PULL))),
         new(ProcessStepTypeId.CREATE_IDENTITY_WALLET, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, custodianBusinessLogic.CreateIdentityWalletAsync, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_IDENTITY_WALLET))),
         new(ProcessStepTypeId.CREATE_DIM_WALLET, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, dimBusinessLogic.CreateDimWalletAsync, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_CREATE_DIM_WALLET))),
+        new(ProcessStepTypeId.CREATE_IDENTITY_HUB_WALLET, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, identityHubBusinessLogic.CreateIdentityHubWalletAsync, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_CREATE_IDENTITY_HUB_WALLET))),
         new(ProcessStepTypeId.VALIDATE_DID_DOCUMENT, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, dimBusinessLogic.ValidateDidDocument, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_VALIDATE_DID_DOCUMENT))),
         new(ProcessStepTypeId.TRANSMIT_BPN_DID, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, bpnDidResolverBusinessLogic.TransmitDidAndBpn, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_TRANSMIT_DID_BPN))),
         new(ProcessStepTypeId.REQUEST_BPN_CREDENTIAL, new(ApplicationChecklistEntryTypeId.BPNL_CREDENTIAL, true, issuerComponentBusinessLogic.CreateBpnlCredential, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL))),

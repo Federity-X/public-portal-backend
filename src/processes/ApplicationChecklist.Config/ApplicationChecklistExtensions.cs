@@ -24,6 +24,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Clearinghouse.Library;
 using Org.Eclipse.TractusX.Portal.Backend.Custodian.Library;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Token;
+using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
 using Org.Eclipse.TractusX.Portal.Backend.SdFactory.Library;
@@ -41,6 +42,7 @@ public static class ApplicationChecklistExtensions
             .AddClearinghouseService(section.GetSection("Clearinghouse"))
             .AddSdFactoryService(section.GetSection("SdFactory"))
             .AddDimService(section.GetSection("Dim"))
+            .AddIdentityHubService(section.GetSection("IdentityHub"))
             .AddIssuerComponentService(section.GetSection("IssuerComponent"));
 
     public static IServiceCollection AddApplicationChecklistCreation(this IServiceCollection services, IConfigurationSection section) =>

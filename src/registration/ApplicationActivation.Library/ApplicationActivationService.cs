@@ -265,10 +265,14 @@ public class ApplicationActivationService(
             await provisioningManager.UpdateSharedRealmTheme(alias, _settings.LoginTheme).ConfigureAwait(false);
         }
 
+        // Dim manages membership in BPDM (SET_CX_MEMBERSHIP_IN_BPDM); Custodian and IdentityHub
+        // use the direct SET_MEMBERSHIP step. (IdentityHub membership is issued as a VC via the
+        // IssuerService in the credential steps; revisit if IdentityHub needs BPDM-side membership.)
+        var walletProvider = _settings.WalletProvider ?? (_settings.UseDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian);
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
             ProcessStepStatusId.DONE,
             null,
-            Enumerable.Repeat(_settings.UseDimWallet ? ProcessStepTypeId.SET_CX_MEMBERSHIP_IN_BPDM : ProcessStepTypeId.SET_MEMBERSHIP, 1),
+            Enumerable.Repeat(walletProvider == WalletProviderId.Dim ? ProcessStepTypeId.SET_CX_MEMBERSHIP_IN_BPDM : ProcessStepTypeId.SET_MEMBERSHIP, 1),
             null,
             true,
             null);

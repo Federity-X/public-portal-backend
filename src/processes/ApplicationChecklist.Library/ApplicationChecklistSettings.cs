@@ -20,12 +20,20 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Validation;
+using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
 
 public class ApplicationChecklistSettings
 {
     public bool UseDimWallet { get; set; }
+
+    /// <summary>
+    /// Selects the onboarding wallet/issuer. When null, falls back to the legacy
+    /// <see cref="UseDimWallet"/> bool (true =&gt; Dim, false =&gt; Custodian). Set to
+    /// <see cref="WalletProviderId.IdentityHub"/> (BE-293) for the IdentityHub wallet.
+    /// </summary>
+    public WalletProviderId? WalletProvider { get; set; }
 }
 
 public static class ApplicationChecklistSettingsExtension

@@ -33,12 +33,15 @@ namespace Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLo
 
 public class IssuerComponentBusinessLogic(
     IPortalRepositories repositories,
-    IIssuerComponentService service,
+    IIssuerComponentServiceSelector serviceSelector,
     IApplicationChecklistService checklistService,
     IOptions<IssuerComponentSettings> options)
     : IIssuerComponentBusinessLogic
 {
     private readonly IssuerComponentSettings _settings = options.Value;
+
+    // Null WalletProvider preserves the historical DIM/ssi issuer-component path.
+    private IIssuerComponentService Service => serviceSelector.GetForProvider(_settings.WalletProvider ?? WalletProviderId.Dim);
 
     public async Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> CreateBpnlCredential(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken)
     {
@@ -72,7 +75,7 @@ public class IssuerComponentBusinessLogic(
                 ? null
                 : new TechnicalUserDetails(walletInformation.WalletUrl, walletInformation.ClientId, secret), callbackUrl);
 
-        await service.CreateBpnlCredential(data, cancellationToken).ConfigureAwait(false);
+        await Service.CreateBpnlCredential(data, cancellationToken).ConfigureAwait(false);
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
             ProcessStepStatusId.DONE,
             checklist =>
@@ -156,7 +159,7 @@ public class IssuerComponentBusinessLogic(
                 ? null
                 : new TechnicalUserDetails(walletInformation.WalletUrl, walletInformation.ClientId, secret), callbackUrl);
 
-        await service.CreateMembershipCredential(data, cancellationToken).ConfigureAwait(false);
+        await Service.CreateMembershipCredential(data, cancellationToken).ConfigureAwait(false);
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
             ProcessStepStatusId.DONE,
             checklist =>
@@ -220,6 +223,6 @@ public class IssuerComponentBusinessLogic(
             isBringYourOwnWallet
                 ? null :
             new TechnicalUserDetails(walletInformation.WalletUrl, walletInformation.ClientId, secret), null);
-        return await service.CreateFrameworkCredential(data, token, cancellationToken).ConfigureAwait(false);
+        return await Service.CreateFrameworkCredential(data, token, cancellationToken).ConfigureAwait(false);
     }
 }

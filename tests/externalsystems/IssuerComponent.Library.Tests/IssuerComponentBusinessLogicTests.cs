@@ -49,6 +49,7 @@ public class IssuerComponentBusinessLogicTests
     private readonly IPortalRepositories _portalRepositories;
 
     private readonly IIssuerComponentService _issuerComponentService;
+    private readonly IIssuerComponentServiceSelector _issuerComponentServiceSelector;
     private readonly IApplicationChecklistService _checklistService;
     private readonly IIssuerComponentBusinessLogic _sut;
     private readonly IOptions<IssuerComponentSettings> _options;
@@ -65,7 +66,11 @@ public class IssuerComponentBusinessLogicTests
         _companyRepository = A.Fake<ICompanyRepository>();
         _portalRepositories = A.Fake<IPortalRepositories>();
         _issuerComponentService = A.Fake<IIssuerComponentService>();
+        _issuerComponentServiceSelector = A.Fake<IIssuerComponentServiceSelector>();
         _checklistService = A.Fake<IApplicationChecklistService>();
+
+        // Default (WalletProvider unset -> Dim) resolves to the DIM/ssi issuer-component service.
+        A.CallTo(() => _issuerComponentServiceSelector.GetForProvider(A<WalletProviderId>._)).Returns(_issuerComponentService);
 
         A.CallTo(() => _portalRepositories.GetInstance<IApplicationRepository>()).Returns(_applicationRepository);
         A.CallTo(() => _portalRepositories.GetInstance<ICompanyRepository>()).Returns(_companyRepository);
@@ -93,7 +98,7 @@ public class IssuerComponentBusinessLogicTests
                 },
             }
         });
-        _sut = new IssuerComponentBusinessLogic(_portalRepositories, _issuerComponentService, _checklistService, _options);
+        _sut = new IssuerComponentBusinessLogic(_portalRepositories, _issuerComponentServiceSelector, _checklistService, _options);
     }
 
     #region CreateBpnlCredential

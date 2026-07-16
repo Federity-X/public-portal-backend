@@ -299,7 +299,13 @@ public sealed class RegistrationBusinessLogic(
         await portalRepositories.SaveAsync().ConfigureAwait(ConfigureAwaitOptions.None);
     }
 
-    private ProcessStepTypeId CreateWalletStep() => _settings.UseDimWallet ? ProcessStepTypeId.CREATE_DIM_WALLET : ProcessStepTypeId.CREATE_IDENTITY_WALLET;
+    private ProcessStepTypeId CreateWalletStep() =>
+        (_settings.WalletProvider ?? (_settings.UseDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian)) switch
+        {
+            WalletProviderId.IdentityHub => ProcessStepTypeId.CREATE_IDENTITY_HUB_WALLET,
+            WalletProviderId.Dim => ProcessStepTypeId.CREATE_DIM_WALLET,
+            _ => ProcessStepTypeId.CREATE_IDENTITY_WALLET
+        };
 
     private async Task<ProcessStepTypeId> CreateWalletOrBpnCredentialStepAsync(Guid applicationId)
     {
