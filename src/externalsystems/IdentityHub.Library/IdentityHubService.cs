@@ -63,15 +63,15 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
             [new ServiceEndpoint($"{did}#CredentialService", "CredentialService", credentialServiceUrl)]);
 
         var created = await PostWithApiKeyAsync("v1alpha/participants", body, $"create holder participant-context for BPN {bpn}", cancellationToken).ConfigureAwait(false);
-        // On 201 the IdentityHub returns {apiKey, clientId, clientSecret}; clientSecret (the
-        // holder's STS secret) is returned ONLY on this first create and is not recoverable on
-        // 409. It is required later by the participant's connector (edc-wallet-secret) for DCP
-        // data exchange — propagating it to the connector Vault is tracked separately (BE-293);
-        // it is NOT needed for onboarding credential issuance, which is the scope here.
-        if (created is not null)
-        {
-            _ = created.ClientSecret;
-        }
+        // On 201 the IdentityHub also returns the holder's STS clientSecret (returned ONLY on this first
+        // create, unrecoverable on 409). We intentionally do NOT retain it: BE-293's onboarding scope is
+        // wallet + credentials + checklist-advance for the company being onboarded — it does NOT make that
+        // company a data-exchange peer (data transfer in the dataspace is exercised by the dedicated
+        // provider/consumer connectors, not by onboarded holders). The STS secret is only needed if an
+        // onboarded company later runs its OWN connector; that is a separate, out-of-scope step (Vault key
+        // `edc-wallet-secret`), and hoarding an unused secret is the worse default. See the BE-293
+        // "Production hardening" notes for what a real deployment must do at that point.
+        _ = created; // create response (incl. the deliberately-unused clientSecret) not persisted — see above
 
         // Activate the context (idempotent — 409/2xx both fine).
         await PostWithApiKeyAsync($"v1alpha/participants/{participantContextId}/state?isActive=true", null, $"activate holder participant-context for BPN {bpn}", cancellationToken).ConfigureAwait(false);
@@ -86,6 +86,12 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
     public async Task RequestCredentialAsync(string bpn, string credentialType, string credentialDefinitionId, CancellationToken cancellationToken)
     {
         var participantContextId = bpn.ToLowerInvariant();
+        // The IssuerService only issues to holders it knows: the holder's DCP credential request is
+        // rejected with 401 "Participant not found" unless the holder is first registered with the
+        // IssuerService (POST /api/admin/v1alpha/participants/{issuerCtx}/holders). Register it here
+        // (idempotent — 409 = already registered), mirroring the umbrella seed's per-participant step.
+        await RegisterHolderWithIssuerAsync(bpn, cancellationToken).ConfigureAwait(false);
+
         // holderPid is the PRIMARY KEY of the holder-credential-request store, so it MUST be
         // unique per (participant, credential type) — a constant collides across participants on
         // the persistent store (only the first request inserts). Deterministic so the request is
@@ -101,6 +107,32 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
             body,
             $"request {credentialType} for BPN {bpn}",
             cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task RegisterHolderWithIssuerAsync(string bpn, CancellationToken cancellationToken)
+    {
+        var did = $"did:web:{_settings.DidDocumentBaseLocation}:{bpn}";
+        // The IssuerService admin API uses the PLAIN participant-context id in the URL path (like the
+        // IdentityHub identity API, EDC 0.17.0 / IH #937), NOT base64 — a base64 id yields 404.
+        var url = $"{_settings.IssuerAdminBaseAddress.TrimEnd('/')}/v1alpha/participants/{_settings.IssuerParticipantId}/holders";
+        var body = new RegisterHolderRequest(did, bpn, $"{bpn} onboarding holder", new HolderProperties(_settings.FrameworkContractVersion));
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            Content = JsonContent.Create(body, options: JsonOptions)
+        };
+        request.Headers.Add("x-api-key", _settings.IssuerAdminApiKey);
+
+        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.Conflict)
+        {
+            return; // already registered with the IssuerService — idempotent
+        }
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            throw new ServiceException($"IssuerService holder registration for BPN {bpn} failed with status {response.StatusCode}: {content}", response.StatusCode);
+        }
     }
 
     private async Task<CreateParticipantResponse?> PostWithApiKeyAsync(string relativeUrl, object? body, string action, CancellationToken cancellationToken)
@@ -136,6 +168,15 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
         }
     }
 }
+
+public record RegisterHolderRequest(
+    [property: JsonPropertyName("did")] string Did,
+    [property: JsonPropertyName("holderId")] string HolderId,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("properties")] HolderProperties Properties);
+
+public record HolderProperties(
+    [property: JsonPropertyName("contractVersion")] string ContractVersion);
 
 public record CreateParticipantRequest(
     [property: JsonPropertyName("active")] bool Active,

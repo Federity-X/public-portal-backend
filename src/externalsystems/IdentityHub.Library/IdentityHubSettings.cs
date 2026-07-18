@@ -79,4 +79,26 @@ public class IdentityHubSettings
 
     [Required(AllowEmptyStrings = false)]
     public string MembershipCredentialDefinitionId { get; set; } = null!;
+
+    /// <summary>
+    /// IssuerService ADMIN API base (e.g. http://issuer-service-admin.tx.test/api/admin). The holder
+    /// must be registered here (POST /v1alpha/participants/{issuerCtx}/holders) before it can request
+    /// credentials, otherwise the DCP credential request is rejected with 401 "Participant not found".
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string IssuerAdminBaseAddress { get; set; } = null!;
+
+    /// <summary>IssuerService admin API key (its super-user key). Secret — pin it like the IH key.</summary>
+    [Required(AllowEmptyStrings = false)]
+    public string IssuerAdminApiKey { get; set; } = null!;
+
+    /// <summary>
+    /// The IssuerService's own participant-context id (e.g. issuer-bpnl00000003crhk); base64-encoded
+    /// into the holder-registration URL path.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string IssuerParticipantId { get; set; } = null!;
+
+    /// <summary>Framework-agreement contract version stamped into the holder registration properties.</summary>
+    public string FrameworkContractVersion { get; set; } = "1.0";
 }

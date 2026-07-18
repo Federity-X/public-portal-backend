@@ -81,6 +81,12 @@ public class IdentityHubBusinessLogic(IPortalRepositories portalRepositories, II
         await portalRepositories.GetInstance<ICompanyRepository>()
             .CreateCustomerWallet(companyId, did, didDocument).ConfigureAwait(ConfigureAwaitOptions.None);
 
+        // Also set the company's DidDocumentLocation (as the DIM/BYOW paths do): the downstream
+        // REQUEST_{BPN,MEMBERSHIP}_CREDENTIAL step guards on it ("The holder must be set") even though
+        // the IdentityHub issuer path itself requests by BPN. Without this the credential requests fail.
+        portalRepositories.GetInstance<ICompanyRepository>()
+            .AttachAndModifyCompany(companyId, c => c.DidDocumentLocation = null, c => c.DidDocumentLocation = did);
+
         return did;
     }
 }
