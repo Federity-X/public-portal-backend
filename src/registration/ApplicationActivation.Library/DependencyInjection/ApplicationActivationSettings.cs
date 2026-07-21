@@ -79,16 +79,6 @@ public class ApplicationActivationSettings
     [Required(AllowEmptyStrings = false)]
     public string DataspaceAddress { get; set; } = null!;
 
-    [Required]
-    public bool UseDimWallet { get; set; }
-
-    /// <summary>
-    /// Selects the onboarding wallet/issuer. When null, falls back to the legacy
-    /// <see cref="UseDimWallet"/> bool (true =&gt; Dim, false =&gt; Custodian). Set to
-    /// <see cref="WalletProviderId.IdentityHub"/> (BE-293) for the IdentityHub wallet.
-    /// </summary>
-    public WalletProviderId? WalletProvider { get; set; }
-
     public static bool Validate(ApplicationActivationSettings settings)
     {
         var startSet = settings.StartTime.HasValue;

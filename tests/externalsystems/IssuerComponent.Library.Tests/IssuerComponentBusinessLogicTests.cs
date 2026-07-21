@@ -27,6 +27,7 @@ using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Service;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Models;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
@@ -50,6 +51,7 @@ public class IssuerComponentBusinessLogicTests
 
     private readonly IIssuerComponentService _issuerComponentService;
     private readonly IIssuerComponentServiceSelector _issuerComponentServiceSelector;
+    private readonly IWalletProviderResolver _walletProviderResolver;
     private readonly IApplicationChecklistService _checklistService;
     private readonly IIssuerComponentBusinessLogic _sut;
     private readonly IOptions<IssuerComponentSettings> _options;
@@ -67,9 +69,10 @@ public class IssuerComponentBusinessLogicTests
         _portalRepositories = A.Fake<IPortalRepositories>();
         _issuerComponentService = A.Fake<IIssuerComponentService>();
         _issuerComponentServiceSelector = A.Fake<IIssuerComponentServiceSelector>();
+        _walletProviderResolver = A.Fake<IWalletProviderResolver>();
         _checklistService = A.Fake<IApplicationChecklistService>();
 
-        // Default (WalletProvider unset -> Dim) resolves to the DIM/ssi issuer-component service.
+        // The selector resolves to the DIM/ssi issuer-component service for whatever provider is selected.
         A.CallTo(() => _issuerComponentServiceSelector.GetForProvider(A<WalletProviderId>._)).Returns(_issuerComponentService);
 
         A.CallTo(() => _portalRepositories.GetInstance<IApplicationRepository>()).Returns(_applicationRepository);
@@ -98,7 +101,7 @@ public class IssuerComponentBusinessLogicTests
                 },
             }
         });
-        _sut = new IssuerComponentBusinessLogic(_portalRepositories, _issuerComponentServiceSelector, _checklistService, _options);
+        _sut = new IssuerComponentBusinessLogic(_portalRepositories, _issuerComponentServiceSelector, _checklistService, _options, _walletProviderResolver);
     }
 
     #region CreateBpnlCredential

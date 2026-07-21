@@ -35,6 +35,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Models;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
@@ -87,6 +88,7 @@ public class RegistrationBusinessLogicTest
     private readonly IProvisioningManager _provisioningManager;
     private readonly IDimBusinessLogic _dimBusinessLogic;
     private readonly IOptions<RegistrationSettings> _options;
+    private readonly IWalletProviderResolver _walletProviderResolver;
     private readonly ILogger<RegistrationBusinessLogic> _logger;
 
     public RegistrationBusinessLogicTest()
@@ -114,6 +116,7 @@ public class RegistrationBusinessLogicTest
         _checklistService = A.Fake<IApplicationChecklistService>();
         _issuerComponentBusinessLogic = A.Fake<IIssuerComponentBusinessLogic>();
         _provisioningManager = A.Fake<IProvisioningManager>();
+        _walletProviderResolver = A.Fake<IWalletProviderResolver>();
 
         A.CallTo(() => _portalRepositories.GetInstance<IApplicationRepository>()).Returns(_applicationRepository);
         A.CallTo(() => _portalRepositories.GetInstance<IIdentityProviderRepository>()).Returns(_identityProviderRepository);
@@ -125,7 +128,7 @@ public class RegistrationBusinessLogicTest
 
         _logger = A.Fake<ILogger<RegistrationBusinessLogic>>();
 
-        _logic = new RegistrationBusinessLogic(_portalRepositories, _options, _checklistService, _clearinghouseBusinessLogic, _sdFactoryBusinessLogic, _dimBusinessLogic, _issuerComponentBusinessLogic, _provisioningManager, _mailingProcessCreation, _logger);
+        _logic = new RegistrationBusinessLogic(_portalRepositories, _options, _walletProviderResolver, _checklistService, _clearinghouseBusinessLogic, _sdFactoryBusinessLogic, _dimBusinessLogic, _issuerComponentBusinessLogic, _provisioningManager, _mailingProcessCreation, _logger);
     }
 
     #region GetCompanyApplicationDetailsAsync
@@ -353,11 +356,11 @@ public class RegistrationBusinessLogicTest
     public async Task UpdateCompanyBpnAsync_WithUseDimWalletFalse_CallsExpected(bool useDimWallet, ProcessStepTypeId expectedProcessStepTypeId)
     {
         // Arrange
-        var options = Options.Create(new RegistrationSettings { UseDimWallet = useDimWallet });
-        A.CallTo(() => _options.Value).Returns(new RegistrationSettings { UseDimWallet = useDimWallet });
+        var options = Options.Create(new RegistrationSettings());
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(useDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian);
         var entry = new ApplicationChecklistEntry(IdWithoutBpn, ApplicationChecklistEntryTypeId.BUSINESS_PARTNER_NUMBER, ApplicationChecklistEntryStatusId.TO_DO, DateTimeOffset.UtcNow);
         SetupForUpdateCompanyBpn(entry);
-        var logic = new RegistrationBusinessLogic(_portalRepositories, options, _checklistService, null!, null!, _dimBusinessLogic, null!, _provisioningManager, null!, null!);
+        var logic = new RegistrationBusinessLogic(_portalRepositories, options, _walletProviderResolver, _checklistService, null!, null!, _dimBusinessLogic, null!, _provisioningManager, null!, null!);
 
         // Act
         await logic.UpdateCompanyBpn(IdWithoutBpn, ValidBpn);
@@ -442,8 +445,9 @@ public class RegistrationBusinessLogicTest
     public async Task SetRegistrationVerification_WithApproval_CallsExpected(bool useDimWallet, ProcessStepTypeId expectedTypeId)
     {
         // Arrange
-        var options = Options.Create(new RegistrationSettings { UseDimWallet = useDimWallet });
-        var logic = new RegistrationBusinessLogic(_portalRepositories, options, _checklistService, null!, null!, _dimBusinessLogic, null!, null!, null!, null!);
+        var options = Options.Create(new RegistrationSettings());
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(useDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian);
+        var logic = new RegistrationBusinessLogic(_portalRepositories, options, _walletProviderResolver, _checklistService, null!, null!, _dimBusinessLogic, null!, null!, null!, null!);
         var entry = new ApplicationChecklistEntry(IdWithBpn, ApplicationChecklistEntryTypeId.REGISTRATION_VERIFICATION, ApplicationChecklistEntryStatusId.TO_DO, DateTimeOffset.UtcNow);
         SetupForApproveRegistrationVerification(entry);
 
@@ -471,8 +475,9 @@ public class RegistrationBusinessLogicTest
     public async Task SetRegistrationVerification_WithApproval_BYOW_CallsExpected(bool useDimWallet, ProcessStepTypeId expectedTypeId)
     {
         // Arrange
-        var options = Options.Create(new RegistrationSettings { UseDimWallet = useDimWallet });
-        var logic = new RegistrationBusinessLogic(_portalRepositories, options, _checklistService, null!, null!, _dimBusinessLogic, null!, null!, null!, null!);
+        var options = Options.Create(new RegistrationSettings());
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(useDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian);
+        var logic = new RegistrationBusinessLogic(_portalRepositories, options, _walletProviderResolver, _checklistService, null!, null!, _dimBusinessLogic, null!, null!, null!, null!);
         var entry = new ApplicationChecklistEntry(IdWithBpn, ApplicationChecklistEntryTypeId.REGISTRATION_VERIFICATION, ApplicationChecklistEntryStatusId.TO_DO, DateTimeOffset.UtcNow);
         SetupForApproveRegistrationVerification(entry);
         A.CallTo(() => _companyRepository.IsBringYourOwnWallet(IdWithBpn))
@@ -795,7 +800,7 @@ public class RegistrationBusinessLogicTest
 
         var settings = A.Fake<RegistrationSettings>();
         A.CallTo(() => _options.Value).Returns(settings);
-        var logic = new RegistrationBusinessLogic(_portalRepositories, _options, _checklistService, _clearinghouseBusinessLogic, _sdFactoryBusinessLogic, _dimBusinessLogic, _issuerComponentBusinessLogic, _provisioningManager, _mailingProcessCreation, _logger);
+        var logic = new RegistrationBusinessLogic(_portalRepositories, _options, _walletProviderResolver, _checklistService, _clearinghouseBusinessLogic, _sdFactoryBusinessLogic, _dimBusinessLogic, _issuerComponentBusinessLogic, _provisioningManager, _mailingProcessCreation, _logger);
         await logic.TriggerChecklistAsync(applicationId, typeId, stepId);
 
         // Assert

@@ -19,7 +19,6 @@
 
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Configuration;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Token;
-using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.DependencyInjection;
@@ -36,11 +35,4 @@ public class IssuerComponentSettings : KeyVaultAuthSettings
     public int EncryptionConfigIndex { get; set; }
 
     public string CallbackBaseUrl { get; set; } = null!;
-
-    /// <summary>
-    /// Which issuer a credential REQUEST step routes to. Null selects the DIM/ssi issuer-component
-    /// (the historical default); <see cref="WalletProviderId.IdentityHub"/> selects the holder
-    /// credential-request path. See BE-293-architecture-callback.
-    /// </summary>
-    public WalletProviderId? WalletProvider { get; set; }
 }

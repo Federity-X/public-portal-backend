@@ -31,6 +31,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.Models;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Extensions;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Extensions;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Models;
@@ -52,6 +53,7 @@ namespace Org.Eclipse.TractusX.Portal.Backend.Administration.Service.BusinessLog
 public sealed class RegistrationBusinessLogic(
     IPortalRepositories portalRepositories,
     IOptions<RegistrationSettings> configuration,
+    IWalletProviderResolver walletProviderResolver,
     IApplicationChecklistService checklistService,
     IClearinghouseBusinessLogic clearinghouseBusinessLogic,
     ISdFactoryBusinessLogic sdFactoryBusinessLogic,
@@ -300,7 +302,7 @@ public sealed class RegistrationBusinessLogic(
     }
 
     private ProcessStepTypeId CreateWalletStep() =>
-        _settings.WalletProvider.EffectiveWalletProvider(_settings.UseDimWallet).GetCreateWalletStep();
+        walletProviderResolver.Provider.GetCreateWalletStep();
 
     private async Task<ProcessStepTypeId> CreateWalletOrBpnCredentialStepAsync(Guid applicationId)
     {

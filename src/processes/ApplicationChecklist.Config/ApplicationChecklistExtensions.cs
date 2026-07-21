@@ -45,8 +45,6 @@ public static class ApplicationChecklistExtensions
             .AddIdentityHubService(section.GetSection("IdentityHub"))
             .AddIssuerComponentService(section.GetSection("IssuerComponent"));
 
-    public static IServiceCollection AddApplicationChecklistCreation(this IServiceCollection services, IConfigurationSection section) =>
-        services
-            .ConfigureApplicationChecklistSettings(section)
-            .AddTransient<IApplicationChecklistCreationService, ApplicationChecklistCreationService>();
+    public static IServiceCollection AddApplicationChecklistCreation(this IServiceCollection services) =>
+        services.AddTransient<IApplicationChecklistCreationService, ApplicationChecklistCreationService>();
 }

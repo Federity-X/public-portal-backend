@@ -17,7 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-using Microsoft.Extensions.Options;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
@@ -27,12 +27,12 @@ namespace Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Lib
 public class ApplicationChecklistCreationService : IApplicationChecklistCreationService
 {
     private readonly IPortalRepositories _portalRepositories;
-    private readonly ApplicationChecklistSettings _settings;
+    private readonly IWalletProviderResolver _walletProviderResolver;
 
-    public ApplicationChecklistCreationService(IPortalRepositories portalRepositories, IOptions<ApplicationChecklistSettings> options)
+    public ApplicationChecklistCreationService(IPortalRepositories portalRepositories, IWalletProviderResolver walletProviderResolver)
     {
         _portalRepositories = portalRepositories;
-        _settings = options.Value;
+        _walletProviderResolver = walletProviderResolver;
     }
 
     /// <inheritdoc />
@@ -67,7 +67,7 @@ public class ApplicationChecklistCreationService : IApplicationChecklistCreation
     private IEnumerable<ApplicationChecklistEntryTypeId> GetApplicationChecklistTypes(Guid applicationId)
     {
         var isBringYourOwnWallet = _portalRepositories.GetInstance<ICompanyRepository>().IsBringYourOwnWallet(applicationId).GetAwaiter().GetResult();
-        var walletProvider = _settings.WalletProvider.EffectiveWalletProvider(_settings.UseDimWallet);
+        var walletProvider = _walletProviderResolver.Provider;
         // Dim, IdentityHub and BYOW holders all issue BPN/Membership credentials via the issuer
         // component, so their checklists need those entries. Custodian (MiW) does not.
         if (walletProvider != WalletProviderId.Custodian || isBringYourOwnWallet)

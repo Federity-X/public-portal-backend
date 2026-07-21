@@ -28,6 +28,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.Linq;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Extensions;
 using Org.Eclipse.TractusX.Portal.Backend.Notifications.Library;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
@@ -47,7 +48,8 @@ public class ApplicationActivationService(
     ICustodianService custodianService,
     IBpdmService bpdmService,
     IMailingProcessCreation mailingProcessCreation,
-    IOptions<ApplicationActivationSettings> options)
+    IOptions<ApplicationActivationSettings> options,
+    IWalletProviderResolver walletProviderResolver)
     : IApplicationActivationService
 {
     private readonly ApplicationActivationSettings _settings = options.Value;
@@ -268,7 +270,7 @@ public class ApplicationActivationService(
         // Dim manages membership in BPDM (SET_CX_MEMBERSHIP_IN_BPDM); Custodian and IdentityHub
         // use the direct SET_MEMBERSHIP step. (IdentityHub membership is issued as a VC via the
         // IssuerService in the credential steps; revisit if IdentityHub needs BPDM-side membership.)
-        var walletProvider = _settings.WalletProvider.EffectiveWalletProvider(_settings.UseDimWallet);
+        var walletProvider = walletProviderResolver.Provider;
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
             ProcessStepStatusId.DONE,
             null,

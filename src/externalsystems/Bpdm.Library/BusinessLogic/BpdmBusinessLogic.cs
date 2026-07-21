@@ -21,6 +21,7 @@ using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.Bpdm.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Enums;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Models;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
@@ -32,7 +33,8 @@ namespace Org.Eclipse.TractusX.Portal.Backend.Bpdm.Library.BusinessLogic;
 public class BpdmBusinessLogic(
     IPortalRepositories portalRepositories,
     IBpdmService bpdmService,
-    IOptions<BpdmServiceSettings> options)
+    IOptions<BpdmServiceSettings> options,
+    IWalletProviderResolver walletProviderResolver)
     : IBpdmBusinessLogic
 {
     private readonly BpdmServiceSettings _settings = options.Value;
@@ -165,7 +167,7 @@ public class BpdmBusinessLogic(
     }
 
     private ProcessStepTypeId CreateWalletStep() =>
-        _settings.WalletProvider.EffectiveWalletProvider(_settings.UseDimWallet).GetCreateWalletStep();
+        walletProviderResolver.Provider.GetCreateWalletStep();
 
     private async Task<ProcessStepTypeId> CreateWalletOrBpnCredentialStepAsync(Guid applicationId)
     {

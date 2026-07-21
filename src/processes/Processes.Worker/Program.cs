@@ -28,6 +28,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Keycloak.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Keycloak.Factory;
 using Org.Eclipse.TractusX.Portal.Backend.Mailing.SendMail;
 using Org.Eclipse.TractusX.Portal.Backend.Offers.Library.DependencyInjection;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Config;
@@ -60,9 +61,10 @@ try
                 .AddTechnicalUserProfile()
                 .AddTransient<IApplicationChecklistHandlerService, ApplicationChecklistHandlerService>()
                 .AddPortalRepositories(hostContext.Configuration)
+                .AddOnboardingWallet(hostContext.Configuration)
                 .AddApplicationChecklist(hostContext.Configuration.GetSection("ApplicationChecklist"))
                 .AddBpnDidResolver(hostContext.Configuration.GetSection("BpnDidResolver"))
-                .AddApplicationChecklistCreation(hostContext.Configuration.GetSection("ApplicationCreation"))
+                .AddApplicationChecklistCreation()
                 .AddApplicationActivation(hostContext.Configuration)
                 .AddConfigurationProcessIdentityService(hostContext.Configuration.GetSection("ProcessIdentity"))
                 .AddNetworkRegistrationProcessExecutor(hostContext.Configuration)

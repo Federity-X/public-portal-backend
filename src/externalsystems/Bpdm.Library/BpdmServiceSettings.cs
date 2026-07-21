@@ -19,7 +19,6 @@
  ********************************************************************************/
 
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Token;
-using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using System.ComponentModel.DataAnnotations;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.Bpdm.Library;
@@ -31,15 +30,6 @@ public class BpdmServiceSettings : KeyVaultAuthSettings
 {
     [Required(AllowEmptyStrings = false)]
     public string BaseAddress { get; set; } = null!;
-
-    public bool UseDimWallet { get; set; }
-
-    /// <summary>
-    /// Selects the onboarding wallet/issuer. When null, falls back to the legacy
-    /// <see cref="UseDimWallet"/> bool (true =&gt; Dim, false =&gt; Custodian). Set to
-    /// <see cref="WalletProviderId.IdentityHub"/> (BE-293) for the IdentityHub wallet.
-    /// </summary>
-    public WalletProviderId? WalletProvider { get; set; }
 
     public bool StartSharingStateAsReady { get; set; }
 

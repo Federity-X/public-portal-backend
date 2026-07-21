@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2024 Contributors to the Eclipse Foundation
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information regarding copyright ownership.
@@ -20,31 +20,27 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Validation;
-using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 
-namespace Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
+namespace Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 
-public class ApplicationChecklistSettings
+public static class OnboardingWalletServiceCollectionExtensions
 {
-    public bool UseDimWallet { get; set; }
+    /// <summary>Top-level configuration section holding the single onboarding wallet-provider selection.</summary>
+    public const string ConfigSection = "Onboarding";
 
     /// <summary>
-    /// Selects the onboarding wallet/issuer. When null, falls back to the legacy
-    /// <see cref="UseDimWallet"/> bool (true =&gt; Dim, false =&gt; Custodian). Set to
-    /// <see cref="WalletProviderId.IdentityHub"/> (BE-293) for the IdentityHub wallet.
+    /// Binds the single <see cref="OnboardingWalletSettings"/> from the top-level <c>Onboarding</c> section
+    /// and registers <see cref="IWalletProviderResolver"/>. Call once per deployable (Administration,
+    /// Registration, Processes.Worker) — mirrors <c>AddPortalRepositories(IConfiguration)</c>, which every
+    /// deployable also calls with the whole configuration to resolve a fixed key.
     /// </summary>
-    public WalletProviderId? WalletProvider { get; set; }
-}
-
-public static class ApplicationChecklistSettingsExtension
-{
-    public static IServiceCollection ConfigureApplicationChecklistSettings(
-        this IServiceCollection services,
-        IConfigurationSection section)
+    public static IServiceCollection AddOnboardingWallet(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddOptions<ApplicationChecklistSettings>()
+        var section = configuration.GetSection(ConfigSection);
+        services.AddOptions<OnboardingWalletSettings>()
             .Bind(section)
             .EnvironmentalValidation(section);
+        services.AddSingleton<IWalletProviderResolver, WalletProviderResolver>();
         return services;
     }
 }

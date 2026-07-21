@@ -24,6 +24,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Service;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
@@ -35,13 +36,13 @@ public class IssuerComponentBusinessLogic(
     IPortalRepositories repositories,
     IIssuerComponentServiceSelector serviceSelector,
     IApplicationChecklistService checklistService,
-    IOptions<IssuerComponentSettings> options)
+    IOptions<IssuerComponentSettings> options,
+    IWalletProviderResolver walletProviderResolver)
     : IIssuerComponentBusinessLogic
 {
     private readonly IssuerComponentSettings _settings = options.Value;
 
-    // Null WalletProvider preserves the historical DIM/ssi issuer-component path.
-    private IIssuerComponentService Service => serviceSelector.GetForProvider(_settings.WalletProvider ?? WalletProviderId.Dim);
+    private IIssuerComponentService Service => serviceSelector.GetForProvider(walletProviderResolver.Provider);
 
     public async Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> CreateBpnlCredential(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken)
     {

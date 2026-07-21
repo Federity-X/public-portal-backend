@@ -17,23 +17,16 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-namespace Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
+using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
+
+namespace Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 
 /// <summary>
-/// Maps the onboarding wallet provider to the checklist step that provisions its wallet. Centralized so
-/// the provider -&gt; create-wallet-step mapping lives in ONE place instead of being duplicated across the
-/// business-logic classes that schedule the wallet step (BE-293).
+/// Resolves the deployment's onboarding wallet provider. Inject this instead of reading a per-feature
+/// WalletProvider/UseDimWallet setting, so the selection has a single source of truth across all processes.
 /// </summary>
-public static class WalletProviderIdExtensions
+public interface IWalletProviderResolver
 {
-    /// <summary>
-    /// Maps the wallet provider to the checklist step that provisions its wallet.
-    /// </summary>
-    public static ProcessStepTypeId GetCreateWalletStep(this WalletProviderId walletProvider) =>
-        walletProvider switch
-        {
-            WalletProviderId.IdentityHub => ProcessStepTypeId.CREATE_IDENTITY_HUB_WALLET,
-            WalletProviderId.Dim => ProcessStepTypeId.CREATE_DIM_WALLET,
-            _ => ProcessStepTypeId.CREATE_IDENTITY_WALLET
-        };
+    /// <summary>The effective onboarding wallet provider for this deployment.</summary>
+    WalletProviderId Provider { get; }
 }

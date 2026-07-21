@@ -35,7 +35,7 @@
 
   <Target Name="openapi" AfterTargets="Build">
     <GetAssemblyIdentity AssemblyFiles="$(OutputPath)$(AssemblyName).dll">
-      <Output TaskParameter="Assemblies" ItemName="assemblyInfo"/>
+      <Output TaskParameter="Assemblies" ItemName="assemblyInfo" />
     </GetAssemblyIdentity>
 
     <Message Text="generating openapi v$(Version)" Importance="high" />
@@ -64,6 +64,7 @@
     <ProjectReference Include="..\..\web\Web.Initialization\Web.Initialization.csproj" />
     <ProjectReference Include="..\..\web\Web.PublicInfos\Web.PublicInfos.csproj" />
     <ProjectReference Include="..\..\framework\Framework.ErrorHandling.Controller\Framework.ErrorHandling.Controller.csproj" />
+    <ProjectReference Include="..\..\onboarding\Onboarding.WalletProvider\Onboarding.WalletProvider.csproj" />
   </ItemGroup>
 
   <ItemGroup>
