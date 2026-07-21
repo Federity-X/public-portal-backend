@@ -19,6 +19,7 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Validation;
 using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Service;
@@ -30,28 +31,34 @@ public static class IdentityHubServiceCollectionExtension
 {
     public static IServiceCollection AddIdentityHubService(this IServiceCollection services, IConfigurationSection section)
     {
-        var optionsBuilder = services.AddOptions<IdentityHubSettings>().Bind(section);
+        services.AddOptions<IdentityHubSettings>().Bind(section);
 
-        // Only enforce the (Required) IdentityHub settings when the section is actually configured,
-        // so stub/DIM deployments that never select the IdentityHub wallet are not forced to supply
-        // them. When IdentityHub IS the selected wallet the section is present, so validation fires
-        // and fails fast on a misconfiguration.
+        // The worker reacts to whatever wallet step is scheduled, so it cannot know at startup whether the
+        // IdentityHub wallet is selected. We treat "the IdentityHub section is present" as the signal that
+        // this deployment intends to use it: when present we enforce the (Required) settings (ValidateOnStart
+        // fails fast on a partial/typo'd section) and wire the real admin-API client; when entirely absent
+        // (a DIM/Custodian-only stack) we register a guard instead of a placeholder base address, so a
+        // CREATE_IDENTITY_HUB_WALLET step accidentally scheduled here (WalletProvider=IdentityHub without the
+        // matching config) fails immediately with a clear, actionable error rather than an obscure DNS error.
         if (section.Exists() && section.GetChildren().Any())
         {
-            optionsBuilder.EnvironmentalValidation(section);
+            services.AddOptions<IdentityHubSettings>().Bind(section).EnvironmentalValidation(section);
+
+            var configuredBaseAddress = section["BaseAddress"];
+            var baseAddress = string.IsNullOrWhiteSpace(configuredBaseAddress)
+                ? null
+                : configuredBaseAddress.EndsWith('/') ? configuredBaseAddress : $"{configuredBaseAddress}/";
+
+            // Plain HTTP client — the IdentityHub admin API authenticates with an x-api-key
+            // header (set per request), not the OAuth/KeyVault flow the DIM/Custodian clients use.
+            services.AddHttpClient<IIdentityHubService, IdentityHubService>(client =>
+                client.BaseAddress = new Uri(baseAddress ?? throw new ConfigurationException("IdentityHub:BaseAddress must be set when the IdentityHub wallet is configured")));
+        }
+        else
+        {
+            services.AddTransient<IIdentityHubService, NotConfiguredIdentityHubService>();
         }
 
-        // Base address read straight from config (no intermediate ServiceProvider). A placeholder is
-        // used when unconfigured — the client is only ever invoked once IdentityHub is the selected
-        // wallet, in which case the real address is validated above.
-        var configuredBaseAddress = section["BaseAddress"];
-        var baseAddress = string.IsNullOrWhiteSpace(configuredBaseAddress)
-            ? "http://identity-hub.not-configured.invalid/"
-            : configuredBaseAddress.EndsWith('/') ? configuredBaseAddress : $"{configuredBaseAddress}/";
-
-        // Plain HTTP client — the IdentityHub admin API authenticates with an x-api-key
-        // header (set per request), not the OAuth/KeyVault flow the DIM/Custodian clients use.
-        services.AddHttpClient<IIdentityHubService, IdentityHubService>(client => client.BaseAddress = new Uri(baseAddress));
         services.AddTransient<IIdentityHubBusinessLogic, IdentityHubBusinessLogic>();
 
         // Keyed issuer-component impl selected when WalletProvider == IdentityHub: a credential

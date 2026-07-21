@@ -25,6 +25,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Custodian.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Tests.Shared;
+using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Executor;
@@ -41,6 +42,7 @@ public class ChecklistHandlerServiceTests
     private readonly IClearinghouseBusinessLogic _clearinghouseBusinessLogic;
     private readonly ISdFactoryBusinessLogic _sdFactoryBusinessLogic;
     private readonly IDimBusinessLogic _dimBusinessLogic;
+    private readonly IIdentityHubBusinessLogic _identityHubBusinessLogic;
     private readonly IIssuerComponentBusinessLogic _issuerComponentBusinessLogic;
     private readonly IBpnDidResolverBusinessLogic _bpnDidResolverBusinessLogic;
     private readonly IApplicationActivationService _applicationActivationService;
@@ -59,6 +61,7 @@ public class ChecklistHandlerServiceTests
         _clearinghouseBusinessLogic = A.Fake<IClearinghouseBusinessLogic>();
         _sdFactoryBusinessLogic = A.Fake<ISdFactoryBusinessLogic>();
         _dimBusinessLogic = A.Fake<IDimBusinessLogic>();
+        _identityHubBusinessLogic = A.Fake<IIdentityHubBusinessLogic>();
         _issuerComponentBusinessLogic = A.Fake<IIssuerComponentBusinessLogic>();
         _bpnDidResolverBusinessLogic = A.Fake<IBpnDidResolverBusinessLogic>();
         _applicationActivationService = A.Fake<IApplicationActivationService>();
@@ -282,6 +285,7 @@ public class ChecklistHandlerServiceTests
             _clearinghouseBusinessLogic,
             _sdFactoryBusinessLogic,
             _dimBusinessLogic,
+            _identityHubBusinessLogic,
             _issuerComponentBusinessLogic,
             _bpnDidResolverBusinessLogic,
             _applicationActivationService,

@@ -67,7 +67,10 @@ public class CompanyRepository(PortalDbContext context) : ICompanyRepository
         setOptionalParameters?.Invoke(address);
         return context.Addresses.Add(address).Entity;
     }
-    public async Task CreateCustomerWallet(Guid companyId, string did, JsonDocument didDocument)
+    public Task CreateCustomerWallet(Guid companyId, string did, JsonDocument didDocument) =>
+        CreateCustomerWallet(companyId, did, didDocument, BringYourOwnWalletClientFields.Identification);
+
+    public async Task CreateCustomerWallet(Guid companyId, string did, JsonDocument didDocument, string clientId)
     {
         var walletId = await context.CompanyWalletDatas
             .Where(wallet => wallet.CompanyId == companyId)
@@ -79,7 +82,7 @@ public class CompanyRepository(PortalDbContext context) : ICompanyRepository
             companyId,
             did,
             didDocument,
-            BringYourOwnWalletClientFields.Identification,
+            clientId,
             new byte[1],
             new byte[1],
             default,

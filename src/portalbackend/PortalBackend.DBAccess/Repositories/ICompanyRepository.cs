@@ -41,7 +41,18 @@ public interface ICompanyRepository
 
     void AttachAndModifyCompany(Guid companyId, Action<Company>? initialize, Action<Company> modify);
 
+    /// <summary>
+    /// Persists a customer/holder wallet (did + did document) tagged as bring-your-own-wallet
+    /// (<see cref="BringYourOwnWalletClientFields.Identification"/>, see <see cref="IsBringYourOwnWallet"/>).
+    /// </summary>
     Task CreateCustomerWallet(Guid companyId, string did, JsonDocument didDocument);
+
+    /// <summary>
+    /// Persists a customer/holder wallet with an explicit <paramref name="clientId"/> marker. A Portal-managed
+    /// wallet (e.g. the IdentityHub holder wallet) passes a non-BYOW marker so it is not misclassified as
+    /// bring-your-own-wallet by <see cref="IsBringYourOwnWallet"/>.
+    /// </summary>
+    Task CreateCustomerWallet(Guid companyId, string did, JsonDocument didDocument, string clientId);
 
     Task<bool> IsBringYourOwnWallet(Guid applicationId);
 

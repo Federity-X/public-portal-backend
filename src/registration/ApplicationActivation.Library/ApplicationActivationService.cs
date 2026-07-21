@@ -268,7 +268,7 @@ public class ApplicationActivationService(
         // Dim manages membership in BPDM (SET_CX_MEMBERSHIP_IN_BPDM); Custodian and IdentityHub
         // use the direct SET_MEMBERSHIP step. (IdentityHub membership is issued as a VC via the
         // IssuerService in the credential steps; revisit if IdentityHub needs BPDM-side membership.)
-        var walletProvider = _settings.WalletProvider ?? (_settings.UseDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian);
+        var walletProvider = _settings.WalletProvider.EffectiveWalletProvider(_settings.UseDimWallet);
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
             ProcessStepStatusId.DONE,
             null,

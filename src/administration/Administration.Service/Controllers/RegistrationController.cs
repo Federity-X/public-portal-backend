@@ -426,6 +426,28 @@ public class RegistrationController(IRegistrationBusinessLogic logic)
     }
 
     /// <summary>
+    /// Retriggers the last failed step
+    /// </summary>
+    /// <param name="applicationId" example="">Id of the application that should be triggered</param>
+    /// <returns>NoContent</returns>
+    /// Example: POST: api/administration/registration/application/{applicationId}/retrigger-create-identity-hub-wallet
+    /// <response code="204">Empty response on success.</response>
+    /// <response code="400">Either the CompanyApplication is not in status SUBMITTED or the next step can't automatically retriggered.</response>
+    /// <response code="404">No application found for the applicationId.</response>
+    [HttpPost]
+    [Authorize(Roles = "approve_new_partner")]
+    [Authorize(Policy = PolicyTypes.CompanyUser)]
+    [Route("application/{applicationId}/retrigger-create-identity-hub-wallet")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<NoContentResult> RetriggerCreateIdentityHubWallet([FromRoute] Guid applicationId)
+    {
+        await logic.TriggerChecklistAsync(applicationId, ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ProcessStepTypeId.RETRIGGER_CREATE_IDENTITY_HUB_WALLET).ConfigureAwait(ConfigureAwaitOptions.None);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Retriggers the last failed step 
     /// </summary>
     /// <param name="applicationId" example="">Id of the application that should be triggered</param>

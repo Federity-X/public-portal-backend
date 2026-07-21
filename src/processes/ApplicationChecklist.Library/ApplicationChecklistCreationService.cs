@@ -67,7 +67,7 @@ public class ApplicationChecklistCreationService : IApplicationChecklistCreation
     private IEnumerable<ApplicationChecklistEntryTypeId> GetApplicationChecklistTypes(Guid applicationId)
     {
         var isBringYourOwnWallet = _portalRepositories.GetInstance<ICompanyRepository>().IsBringYourOwnWallet(applicationId).GetAwaiter().GetResult();
-        var walletProvider = _settings.WalletProvider ?? (_settings.UseDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian);
+        var walletProvider = _settings.WalletProvider.EffectiveWalletProvider(_settings.UseDimWallet);
         // Dim, IdentityHub and BYOW holders all issue BPN/Membership credentials via the issuer
         // component, so their checklists need those entries. Custodian (MiW) does not.
         if (walletProvider != WalletProviderId.Custodian || isBringYourOwnWallet)

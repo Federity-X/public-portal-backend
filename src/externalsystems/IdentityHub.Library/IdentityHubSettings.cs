@@ -93,8 +93,9 @@ public class IdentityHubSettings
     public string IssuerAdminApiKey { get; set; } = null!;
 
     /// <summary>
-    /// The IssuerService's own participant-context id (e.g. issuer-bpnl00000003crhk); base64-encoded
-    /// into the holder-registration URL path.
+    /// The IssuerService's own participant-context id (e.g. issuer-bpnl00000003crhk). Used PLAIN in the
+    /// holder-registration URL path (POST {IssuerAdminBaseAddress}/v1alpha/participants/{IssuerParticipantId}/holders);
+    /// NOT base64-encoded (EDC 0.17.0 / IH #937) — a base64 value yields 404.
     /// </summary>
     [Required(AllowEmptyStrings = false)]
     public string IssuerParticipantId { get; set; } = null!;

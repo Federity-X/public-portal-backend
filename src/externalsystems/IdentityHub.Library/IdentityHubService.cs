@@ -62,16 +62,15 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
                 new KeyGeneratorParams("EC", "secp256r1")),
             [new ServiceEndpoint($"{did}#CredentialService", "CredentialService", credentialServiceUrl)]);
 
-        var created = await PostWithApiKeyAsync("v1alpha/participants", body, $"create holder participant-context for BPN {bpn}", cancellationToken).ConfigureAwait(false);
         // On 201 the IdentityHub also returns the holder's STS clientSecret (returned ONLY on this first
-        // create, unrecoverable on 409). We intentionally do NOT retain it: BE-293's onboarding scope is
+        // create, unrecoverable on 409). We intentionally do NOT read/retain it: BE-293's onboarding scope is
         // wallet + credentials + checklist-advance for the company being onboarded — it does NOT make that
         // company a data-exchange peer (data transfer in the dataspace is exercised by the dedicated
         // provider/consumer connectors, not by onboarded holders). The STS secret is only needed if an
         // onboarded company later runs its OWN connector; that is a separate, out-of-scope step (Vault key
         // `edc-wallet-secret`), and hoarding an unused secret is the worse default. See the BE-293
         // "Production hardening" notes for what a real deployment must do at that point.
-        _ = created; // create response (incl. the deliberately-unused clientSecret) not persisted — see above
+        await PostWithApiKeyAsync("v1alpha/participants", body, $"create holder participant-context for BPN {bpn}", cancellationToken).ConfigureAwait(false);
 
         // Activate the context (idempotent — 409/2xx both fine).
         await PostWithApiKeyAsync($"v1alpha/participants/{participantContextId}/state?isActive=true", null, $"activate holder participant-context for BPN {bpn}", cancellationToken).ConfigureAwait(false);
@@ -135,7 +134,7 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
         }
     }
 
-    private async Task<CreateParticipantResponse?> PostWithApiKeyAsync(string relativeUrl, object? body, string action, CancellationToken cancellationToken)
+    private async Task PostWithApiKeyAsync(string relativeUrl, object? body, string action, CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, relativeUrl);
         request.Headers.Add("x-api-key", _settings.ApiKey);
@@ -147,24 +146,15 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
         using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
         if (response.StatusCode == HttpStatusCode.Conflict)
         {
-            // Already provisioned — idempotent success (the create response/secret is not returned).
-            return null;
+            // Already provisioned — idempotent success. The create response (incl. the STS clientSecret)
+            // is deliberately not read; see CreateHolderWalletAsync.
+            return;
         }
 
         if (!response.IsSuccessStatusCode)
         {
             var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
             throw new ServiceException($"IdentityHub {action} failed with status {response.StatusCode}: {content}", response.StatusCode);
-        }
-
-        try
-        {
-            return await response.Content.ReadFromJsonAsync<CreateParticipantResponse>(JsonOptions, cancellationToken).ConfigureAwait(false);
-        }
-        catch (JsonException)
-        {
-            // Activation and some responses carry no JSON body.
-            return null;
         }
     }
 }
@@ -200,11 +190,6 @@ public record ServiceEndpoint(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("serviceEndpoint")] string ServiceEndpointUrl);
-
-public record CreateParticipantResponse(
-    [property: JsonPropertyName("apiKey")] string? ApiKey,
-    [property: JsonPropertyName("clientId")] string? ClientId,
-    [property: JsonPropertyName("clientSecret")] string? ClientSecret);
 
 public record DidReference(
     [property: JsonPropertyName("id")] string Id);

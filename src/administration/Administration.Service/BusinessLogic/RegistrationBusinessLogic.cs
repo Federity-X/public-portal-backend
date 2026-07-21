@@ -300,12 +300,7 @@ public sealed class RegistrationBusinessLogic(
     }
 
     private ProcessStepTypeId CreateWalletStep() =>
-        (_settings.WalletProvider ?? (_settings.UseDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian)) switch
-        {
-            WalletProviderId.IdentityHub => ProcessStepTypeId.CREATE_IDENTITY_HUB_WALLET,
-            WalletProviderId.Dim => ProcessStepTypeId.CREATE_DIM_WALLET,
-            _ => ProcessStepTypeId.CREATE_IDENTITY_WALLET
-        };
+        _settings.WalletProvider.EffectiveWalletProvider(_settings.UseDimWallet).GetCreateWalletStep();
 
     private async Task<ProcessStepTypeId> CreateWalletOrBpnCredentialStepAsync(Guid applicationId)
     {
