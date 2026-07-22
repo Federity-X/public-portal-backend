@@ -24,6 +24,8 @@ namespace Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library;
 /// <summary>
 /// Settings for driving the Tractus-X IdentityHub / IssuerService admin API when
 /// IdentityHub is the selected onboarding wallet (BE-293).
+/// See docs/onboarding/identityhub-wallet.md, in particular the cross-repository contract with the
+/// holder-side portal-credential-callback extension.
 /// </summary>
 public class IdentityHubSettings
 {
@@ -81,14 +83,25 @@ public class IdentityHubSettings
     /// <summary>VC format requested from the issuer (the seed uses VC1_0_JWT).</summary>
     public string CredentialFormat { get; set; } = "VC1_0_JWT";
 
-    /// <summary>VC type + issuer credential-definition id for the BPN(L) onboarding credential.</summary>
+    /// <summary>
+    /// VC type + issuer credential-definition id for the BPN(L) onboarding credential.
+    /// <para>
+    /// CROSS-REPO CONTRACT: the type string must match <c>tx.portal.callback.bpn.credential.type</c> in
+    /// the holder-side portal-credential-callback extension, which compares with an exact equals and
+    /// SILENTLY SKIPS on mismatch - the application then hangs in AWAIT_BPN_CREDENTIAL_RESPONSE with no
+    /// error on either side.
+    /// </para>
+    /// </summary>
     [Required(AllowEmptyStrings = false)]
     public string BpnCredentialType { get; set; } = "BpnCredential";
 
     [Required(AllowEmptyStrings = false)]
     public string BpnCredentialDefinitionId { get; set; } = null!;
 
-    /// <summary>VC type + issuer credential-definition id for the Membership onboarding credential.</summary>
+    /// <summary>
+    /// VC type + issuer credential-definition id for the Membership onboarding credential. Must match
+    /// <c>tx.portal.callback.membership.credential.type</c> - see <see cref="BpnCredentialType"/>.
+    /// </summary>
     [Required(AllowEmptyStrings = false)]
     public string MembershipCredentialType { get; set; } = "MembershipCredential";
 
