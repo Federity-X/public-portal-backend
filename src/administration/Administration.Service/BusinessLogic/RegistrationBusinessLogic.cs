@@ -593,6 +593,7 @@ public sealed class RegistrationBusinessLogic(
     /// <inheritdoc />
     public async Task ProcessIssuerBpnResponseAsync(IssuerResponseData data, CancellationToken cancellationToken)
     {
+        LogIssuerCallback("BPNL", data);
         var applicationId = await GetApplicationIdByBpn(data, cancellationToken);
 
         await issuerComponentBusinessLogic.StoreBpnlCredentialResponse(applicationId, data).ConfigureAwait(false);
@@ -602,10 +603,25 @@ public sealed class RegistrationBusinessLogic(
     /// <inheritdoc />
     public async Task ProcessIssuerMembershipResponseAsync(IssuerResponseData data, CancellationToken cancellationToken)
     {
+        LogIssuerCallback("MEMBERSHIP", data);
         var applicationId = await GetApplicationIdByBpn(data, cancellationToken);
         await issuerComponentBusinessLogic.StoreMembershipCredentialResponse(applicationId, data).ConfigureAwait(false);
         await portalRepositories.SaveAsync().ConfigureAwait(false);
     }
+
+    /// <summary>
+    /// Records every inbound issuer callback before it is resolved, so the 404 (no SUBMITTED application)
+    /// and 409 (step already advanced) outcomes are attributable to a BPN and credential. Both are normal
+    /// for a duplicate or late delivery — the IdentityHub callback extension deduplicates in memory only,
+    /// so a restart replays its retained terminal-state store — and without this line a burst of them
+    /// cannot be told apart from a real fault.
+    /// </summary>
+    private void LogIssuerCallback(string credential, IssuerResponseData data) =>
+        logger.LogInformation(
+            "Issuer {Credential} credential callback received for bpn {Bpn} with status {Status}",
+            credential,
+            data.Bpn.Replace(Environment.NewLine, string.Empty),
+            data.Status);
 
     private async Task<Guid> GetApplicationIdByBpn(IssuerResponseData data, CancellationToken cancellationToken)
     {

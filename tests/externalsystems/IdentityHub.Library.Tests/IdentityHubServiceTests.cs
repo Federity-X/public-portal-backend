@@ -17,7 +17,9 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
+using FakeItEasy;
 using FluentAssertions;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using System.Net;
@@ -52,7 +54,7 @@ public class IdentityHubServiceTests
     };
 
     private static IdentityHubService CreateSut(RecordingHandler handler) =>
-        new(new HttpClient(handler) { BaseAddress = new Uri("https://ih.example.org/api/identity/") }, Options.Create(Settings));
+        new(new HttpClient(handler) { BaseAddress = new Uri("https://ih.example.org/api/identity/") }, Options.Create(Settings), A.Fake<ILogger<IdentityHubService>>());
 
     [Fact]
     public async Task CreateHolderWalletAsync_PostsCreateThenActivate_WithCorrectCasing()

@@ -17,6 +17,7 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using System.Net;
@@ -35,7 +36,7 @@ namespace Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library;
 /// <item>POST /v1alpha/participants/{ctx}/state?isActive=true — activate it.</item>
 /// </list>
 /// </summary>
-public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSettings> options)
+public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSettings> options, ILogger<IdentityHubService> logger)
     : IIdentityHubService
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
@@ -97,6 +98,17 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
         // unique per (participant, credential type) — a constant collides across participants on
         // the persistent store (only the first request inserts). Deterministic so the request is
         // idempotent across step retries for the same holder+type.
+        // The credential type is the one value that must match tx.portal.callback.{bpn,membership}.credential.type
+        // on the IdentityHub side. A mismatch is skipped there and produces nothing here, so the application
+        // just sits in AWAIT_*_CREDENTIAL_RESPONSE - log what was actually requested to make that diagnosable
+        // from the Portal side. Logged per request rather than at startup so it is attributable to a BPN and
+        // present in the same log at the moment the drift would bite.
+        logger.LogInformation(
+            "Requesting {CredentialType} (definition {CredentialDefinitionId}) for bpn {Bpn} from the IdentityHub issuer",
+            credentialType,
+            credentialDefinitionId,
+            normalizedBpn);
+
         var holderPid = $"{participantContextId}-{credentialType.ToLowerInvariant()}";
         var body = new CredentialRequest(
             _settings.IssuerDid,

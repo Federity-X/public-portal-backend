@@ -66,9 +66,31 @@ watches the `HolderCredentialRequestStore` for requests reaching a terminal stat
 Portal's existing BPN-keyed issuer endpoints, which advance the `AWAIT_*_CREDENTIAL_RESPONSE` steps.
 
 **This extension must be deployed and configured, or applications stall at
-`AWAIT_BPN_CREDENTIAL_RESPONSE` with no error anywhere.** Recovery is
-`POST /api/administration/registration/application/{applicationId}/retrigger-bpn-credential`
-(and `.../retrigger-membership-credential`).
+`AWAIT_BPN_CREDENTIAL_RESPONSE` with no error anywhere.**
+
+### Recovering a credential step
+
+Retrigger is the **canonical recovery** for both IdentityHub-originated outcomes — an application stuck
+awaiting a callback that never arrived, and a `BPNL_CREDENTIAL`/`MEMBERSHIP_CREDENTIAL` entry driven to
+`FAILED` by a terminal `ERROR` from the IssuerService:
+
+```
+POST /api/administration/registration/application/{applicationId}/retrigger-bpn-credential
+POST /api/administration/registration/application/{applicationId}/retrigger-membership-credential
+```
+
+Each resets its checklist entry to `TO_DO` and re-schedules `REQUEST_*_CREDENTIAL`, so the holder
+requests the credential again from scratch. Both require the `approve_new_partner` role.
+
+> Both endpoints returned `400` unconditionally until this change — `BPNL_CREDENTIAL` and
+> `MEMBERSHIP_CREDENTIAL` had no entry in the manual-trigger map. `ApplicationChecklistEntryTypeIdExtensionsTests`
+> now pins the mapping, including a case asserting that every manually triggerable step has a next-step
+> mapping, so the pair cannot silently drift apart again.
+
+Diagnosing from Portal logs: every inbound issuer callback is logged with its BPN and status before it
+is resolved, and every outbound credential request is logged with the credential type actually sent.
+Between them, a stalled application can be told apart from a mismatched credential type without reading
+the IdentityHub's logs.
 
 ### Contract between the two repositories
 
