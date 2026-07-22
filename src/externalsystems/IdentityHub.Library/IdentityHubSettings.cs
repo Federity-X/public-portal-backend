@@ -58,8 +58,13 @@ public class IdentityHubSettings
     /// <summary>
     /// How long the holder's did:web may stay unresolvable before VALIDATE_DID_DOCUMENT fails and waits
     /// for a manual retrigger. Mirrors Dim:MaxValidationTimeInDays.
+    /// <para>
+    /// Range, not Required: [Required] passes for a non-nullable int at 0, so an unset key would bind
+    /// to 0 and start cleanly, then fail VALIDATE_DID_DOCUMENT on its very first poll ("The validation
+    /// was aborted") because the deadline is dateCreated + 0 days. Fail at startup instead.
+    /// </para>
     /// </summary>
-    [Required]
+    [Range(1, int.MaxValue)]
     public int MaxValidationTimeInDays { get; set; }
 
     /// <summary>
