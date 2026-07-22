@@ -27,6 +27,8 @@ public static class ApplicationChecklistEntryTypeIdExtensions
     private static readonly ImmutableDictionary<ApplicationChecklistEntryTypeId, IEnumerable<ProcessStepTypeId>> ManualProcessStepIds = ImmutableDictionary.CreateRange<ApplicationChecklistEntryTypeId, IEnumerable<ProcessStepTypeId>>([
         new(ApplicationChecklistEntryTypeId.CLEARING_HOUSE, [ProcessStepTypeId.RETRIGGER_CLEARING_HOUSE, ProcessStepTypeId.MANUAL_TRIGGER_OVERRIDE_CLEARING_HOUSE]),
         new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, [ProcessStepTypeId.RETRIGGER_IDENTITY_WALLET, ProcessStepTypeId.RETRIGGER_CREATE_DIM_WALLET, ProcessStepTypeId.RETRIGGER_CREATE_IDENTITY_HUB_WALLET, ProcessStepTypeId.RETRIGGER_VALIDATE_DID_DOCUMENT]),
+        new(ApplicationChecklistEntryTypeId.BPNL_CREDENTIAL, [ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL]),
+        new(ApplicationChecklistEntryTypeId.MEMBERSHIP_CREDENTIAL, [ProcessStepTypeId.RETRIGGER_REQUEST_MEMBERSHIP_CREDENTIAL]),
         new(ApplicationChecklistEntryTypeId.SELF_DESCRIPTION_LP, [ProcessStepTypeId.RETRIGGER_SELF_DESCRIPTION_LP]),
         new(ApplicationChecklistEntryTypeId.BUSINESS_PARTNER_NUMBER, [ProcessStepTypeId.RETRIGGER_BUSINESS_PARTNER_NUMBER_PUSH, ProcessStepTypeId.RETRIGGER_BUSINESS_PARTNER_NUMBER_PULL]),
         new(ApplicationChecklistEntryTypeId.APPLICATION_ACTIVATION, [ProcessStepTypeId.RETRIGGER_ASSIGN_INITIAL_ROLES, ProcessStepTypeId.RETRIGGER_ASSIGN_BPN_TO_USERS, ProcessStepTypeId.RETRIGGER_REMOVE_REGISTRATION_ROLES, ProcessStepTypeId.RETRIGGER_SET_THEME, ProcessStepTypeId.RETRIGGER_SET_MEMBERSHIP, ProcessStepTypeId.RETRIGGER_SET_CX_MEMBERSHIP_IN_BPDM])
@@ -48,6 +50,8 @@ public static class ApplicationChecklistEntryTypeIdExtensions
             ProcessStepTypeId.RETRIGGER_CREATE_DIM_WALLET => (ProcessStepTypeId.CREATE_DIM_WALLET, ApplicationChecklistEntryStatusId.TO_DO),
             ProcessStepTypeId.RETRIGGER_CREATE_IDENTITY_HUB_WALLET => (ProcessStepTypeId.CREATE_IDENTITY_HUB_WALLET, ApplicationChecklistEntryStatusId.TO_DO),
             ProcessStepTypeId.RETRIGGER_VALIDATE_DID_DOCUMENT => (ProcessStepTypeId.VALIDATE_DID_DOCUMENT, ApplicationChecklistEntryStatusId.TO_DO),
+            ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL => (ProcessStepTypeId.REQUEST_BPN_CREDENTIAL, ApplicationChecklistEntryStatusId.TO_DO),
+            ProcessStepTypeId.RETRIGGER_REQUEST_MEMBERSHIP_CREDENTIAL => (ProcessStepTypeId.REQUEST_MEMBERSHIP_CREDENTIAL, ApplicationChecklistEntryStatusId.TO_DO),
             ProcessStepTypeId.RETRIGGER_SELF_DESCRIPTION_LP => (ProcessStepTypeId.START_SELF_DESCRIPTION_LP, ApplicationChecklistEntryStatusId.TO_DO),
             ProcessStepTypeId.RETRIGGER_BUSINESS_PARTNER_NUMBER_PUSH => (ProcessStepTypeId.CREATE_BUSINESS_PARTNER_NUMBER_PUSH, ApplicationChecklistEntryStatusId.TO_DO),
             ProcessStepTypeId.RETRIGGER_BUSINESS_PARTNER_NUMBER_PULL => (ProcessStepTypeId.CREATE_BUSINESS_PARTNER_NUMBER_PULL, ApplicationChecklistEntryStatusId.IN_PROGRESS),
