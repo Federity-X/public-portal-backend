@@ -41,17 +41,18 @@ public class IdentityHubCredentialAwaitBusinessLogic(
 
     /// <inheritdoc />
     public Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> AwaitBpnCredentialResponse(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken) =>
-        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL, "BPN");
+        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL, "BPN", _settings.BpnCredentialType);
 
     /// <inheritdoc />
     public Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> AwaitMembershipCredentialResponse(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken) =>
-        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_MEMBERSHIP_CREDENTIAL, "Membership");
+        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_MEMBERSHIP_CREDENTIAL, "Membership", _settings.MembershipCredentialType);
 
     private async Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> AwaitCredentialResponse(
         IApplicationChecklistService.WorkerChecklistProcessStepData context,
         ProcessStepTypeId awaitStepTypeId,
         ProcessStepTypeId retriggerStepTypeId,
-        string credential)
+        string credential,
+        string configuredCredentialType)
     {
         var dateCreated = await GetWaitingSince(context.ApplicationId, awaitStepTypeId).ConfigureAwait(ConfigureAwaitOptions.None);
         var deadline = dateCreated.AddDays(_settings.MaxCredentialWaitTimeInDays);
@@ -69,11 +70,15 @@ public class IdentityHubCredentialAwaitBusinessLogic(
                 null);
         }
 
+        // Ordered by likelihood given what a missing callback can actually mean. A holder-side send failure
+        // is NOT in this list: that transitions the holder to ERROR immediately and posts UNSUCCESSFUL, so
+        // it fails in seconds rather than reaching this deadline.
         logger.LogWarning(
-            "No {Credential} credential callback for application {ApplicationId} within {MaxCredentialWaitTimeInDays} day(s); failing the step for retrigger. Check that the IdentityHub portal-credential-callback extension is deployed and that its credential-type settings match the Portal's.",
+            "No {Credential} credential callback for application {ApplicationId} within {MaxCredentialWaitTimeInDays} day(s); failing the step for retrigger. Likely causes: the IssuerService accepted the request but never delivered it (the holder stays in REQUESTED and reports nothing); the portal-credential-callback extension is not deployed or cannot reach the Portal; or its configured credential type does not match the {ConfiguredCredentialType} this Portal requested.",
             credential,
             context.ApplicationId,
-            _settings.MaxCredentialWaitTimeInDays);
+            _settings.MaxCredentialWaitTimeInDays,
+            configuredCredentialType);
 
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
             ProcessStepStatusId.FAILED,

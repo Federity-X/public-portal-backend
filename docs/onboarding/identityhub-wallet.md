@@ -80,9 +80,28 @@ only**, the worker also gives them a deadline of `IdentityHub:MaxCredentialWaitT
   a `WARN` naming the likely causes, and `RETRIGGER_REQUEST_*_CREDENTIAL` scheduled
 
 DIM and Custodian are unaffected: their issuer posts its own callback, so their executable step set is
-unchanged. This exists because the IdentityHub callback comes from a separately deployed extension that
-can be absent, misconfigured, or silently skipping a mismatched credential type — without a deadline the
-application parks indefinitely with nothing surfacing anywhere.
+unchanged.
+
+### Diagnosing a failed credential step
+
+The deadline and the holder's own `ERROR` cover **disjoint** failure domains — confirmed against the EDC
+0.17.0 holder state machine (`CredentialRequestManagerImpl` / `CredentialWriterImpl`) — so **how long the
+step took to fail tells you which one you are in**:
+
+| What went wrong | Holder state | What arrives | Step fails | Where to look |
+| --- | --- | --- | --- | --- |
+| Holder could not send its request (STS, endpoint, DCP) | `ERROR` — immediate and terminal, never retried | `UNSUCCESSFUL` | within **seconds** | IdentityHub holder logs |
+| **Issuer accepted but never delivered** | `REQUESTED` forever | **nothing** | after the **deadline** | IssuerService |
+| Callback extension absent, unreachable, or credential type mismatched | `ISSUED` | **nothing** | after the **deadline** | extension config, and the `Requesting …` line in the worker log for the type actually sent |
+| Success | `ISSUED` | `SUCCESSFUL` | — | — |
+
+The second row is why this deadline exists at all: an issuer-side give-up is **invisible to the holder** —
+there is no inbound `ERROR` transition and no holder-side `REQUESTED` timeout — so nothing is ever posted
+and no amount of extension hardening would surface it. The deadline is the only mechanism that catches it.
+
+A holder `ERROR` fires within seconds of a send failure and the success path completes in minutes, so a
+step that fails on the deadline is never a slow-but-healthy issuance — unless a deployment runs long
+attestation pipelines, in which case raise `MaxCredentialWaitTimeInDays`.
 
 ### Recovering a credential step
 
