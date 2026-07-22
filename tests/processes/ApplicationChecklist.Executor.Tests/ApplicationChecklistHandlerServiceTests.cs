@@ -45,6 +45,7 @@ public class ChecklistHandlerServiceTests
     private readonly IIdentityHubBusinessLogic _identityHubBusinessLogic;
     private readonly IIssuerComponentBusinessLogic _issuerComponentBusinessLogic;
     private readonly IBpnDidResolverBusinessLogic _bpnDidResolverBusinessLogic;
+    private readonly IDidDocumentValidationBusinessLogic _didDocumentValidationBusinessLogic;
     private readonly IApplicationActivationService _applicationActivationService;
     private readonly IApplicationChecklistService _checklistService;
     private readonly IFixture _fixture;
@@ -64,6 +65,7 @@ public class ChecklistHandlerServiceTests
         _identityHubBusinessLogic = A.Fake<IIdentityHubBusinessLogic>();
         _issuerComponentBusinessLogic = A.Fake<IIssuerComponentBusinessLogic>();
         _bpnDidResolverBusinessLogic = A.Fake<IBpnDidResolverBusinessLogic>();
+        _didDocumentValidationBusinessLogic = A.Fake<IDidDocumentValidationBusinessLogic>();
         _applicationActivationService = A.Fake<IApplicationActivationService>();
         _checklistService = A.Fake<IApplicationChecklistService>();
     }
@@ -126,7 +128,7 @@ public class ChecklistHandlerServiceTests
                 A.CallTo(() => _dimBusinessLogic.CreateDimWalletAsync(context, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
                 break;
             case ProcessStepTypeId.VALIDATE_DID_DOCUMENT:
-                A.CallTo(() => _dimBusinessLogic.ValidateDidDocument(context, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+                A.CallTo(() => _didDocumentValidationBusinessLogic.ValidateDidDocument(context, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
                 break;
             case ProcessStepTypeId.TRANSMIT_BPN_DID:
                 A.CallTo(() => _bpnDidResolverBusinessLogic.TransmitDidAndBpn(context, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
@@ -288,6 +290,7 @@ public class ChecklistHandlerServiceTests
             _identityHubBusinessLogic,
             _issuerComponentBusinessLogic,
             _bpnDidResolverBusinessLogic,
+            _didDocumentValidationBusinessLogic,
             _applicationActivationService,
             _checklistService);
 }

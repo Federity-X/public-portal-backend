@@ -21,7 +21,6 @@ using Json.Schema;
 using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.Models;
-using Org.Eclipse.TractusX.Portal.Backend.Framework.DateTimeProvider;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Encryption;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Entities;
@@ -41,18 +40,16 @@ public class DimBusinessLogic : IDimBusinessLogic
     private readonly IPortalRepositories _portalRepositories;
     private readonly IDimService _dimService;
     private readonly IApplicationChecklistService _checklistService;
-    private readonly IDateTimeProvider _dateTimeProvider;
     private readonly DimSettings _settings;
 
     private static readonly string MALFORMED_DID = "The Did does not match the expected format";
     private static readonly string INVALID_DID_DOCUMENT = "The Did document does not match the expected format";
 
-    public DimBusinessLogic(IPortalRepositories portalRepositories, IDimService dimService, IApplicationChecklistService checklistService, IDateTimeProvider dateTimeProvider, IOptions<DimSettings> options)
+    public DimBusinessLogic(IPortalRepositories portalRepositories, IDimService dimService, IApplicationChecklistService checklistService, IOptions<DimSettings> options)
     {
         _portalRepositories = portalRepositories;
         _dimService = dimService;
         _checklistService = checklistService;
-        _dateTimeProvider = dateTimeProvider;
         _settings = options.Value;
     }
 
@@ -161,74 +158,6 @@ public class DimBusinessLogic : IDimBusinessLogic
     {
         var expectedDid = $"did:web:{_settings.DidDocumentBaseLocation.Replace("https://", string.Empty).Replace("/", ":")}:{bpn}";
         return did.Equals(expectedDid, StringComparison.OrdinalIgnoreCase);
-    }
-
-    public async Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> ValidateDidDocument(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken)
-    {
-        if (context.Checklist[ApplicationChecklistEntryTypeId.IDENTITY_WALLET] != ApplicationChecklistEntryStatusId.IN_PROGRESS)
-        {
-            return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
-                ProcessStepStatusId.FAILED,
-                checklistEntry => checklistEntry.Comment = $"processStep CREATE_IDENTITY_WALLET failed as entries IDENTITY_WALLET must have status {ApplicationChecklistEntryStatusId.IN_PROGRESS}",
-                null,
-                null,
-                true,
-                null);
-        }
-
-        var (result, dateCreated) = await ValidateDid(context.ApplicationId, cancellationToken).ConfigureAwait(ConfigureAwaitOptions.None);
-        if (result)
-        {
-            return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
-                ProcessStepStatusId.DONE,
-                checklist =>
-                {
-                    checklist.ApplicationChecklistEntryStatusId = ApplicationChecklistEntryStatusId.IN_PROGRESS;
-                },
-                [ProcessStepTypeId.TRANSMIT_BPN_DID],
-                null,
-                true,
-                null);
-        }
-
-        // Do stuff
-        var maxTime = dateCreated.AddDays(_settings.MaxValidationTimeInDays);
-        return _dateTimeProvider.OffsetNow > maxTime
-            ? new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
-                ProcessStepStatusId.FAILED,
-                null,
-                Enumerable.Repeat(ProcessStepTypeId.RETRIGGER_VALIDATE_DID_DOCUMENT, 1),
-                null,
-                false,
-                "The validation was aborted")
-            : new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
-                ProcessStepStatusId.TODO,
-                null,
-                null,
-                null,
-                false,
-                null);
-    }
-
-    private async Task<(bool ValidationResult, DateTimeOffset DateCreated)> ValidateDid(Guid applicationId, CancellationToken cancellationToken)
-    {
-        var (exists, did, processStepsDateCreated) = await _portalRepositories.GetInstance<IApplicationRepository>().GetDidApplicationId(applicationId).ConfigureAwait(ConfigureAwaitOptions.None);
-        if (!exists)
-        {
-            throw new NotFoundException($"CompanyApplication {applicationId} does not exist");
-        }
-
-        if (string.IsNullOrWhiteSpace(did))
-        {
-            throw new ConflictException("There must be a did set");
-        }
-
-        if (processStepsDateCreated.Count() != 1)
-        {
-            throw new ConflictException($"There must be excatly on active {ProcessStepTypeId.VALIDATE_DID_DOCUMENT}");
-        }
-
-        return (await _dimService.ValidateDid(did, cancellationToken).ConfigureAwait(ConfigureAwaitOptions.None), processStepsDateCreated.Single());
     }
 
     private static async Task<bool> ValidateSchema(JsonDocument content, CancellationToken cancellationToken)

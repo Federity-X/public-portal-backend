@@ -17,26 +17,32 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
+using Org.Eclipse.TractusX.Portal.Backend.BpnDidResolver.Library;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using System.Text.Json;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library;
 
 /// <summary>
-/// Guard <see cref="IIdentityHubService"/> registered when the 'IdentityHub' configuration section is
-/// absent (a DIM/Custodian-only deployment). It lets the checklist handler and issuer-component selector
-/// be constructed, but fails loudly and clearly if a CREATE_IDENTITY_HUB_WALLET step is ever actually
-/// executed here — i.e. WalletProvider=IdentityHub was selected without supplying the IdentityHub config.
+/// Guard registered when the 'IdentityHub' configuration section is absent (a DIM/Custodian-only
+/// deployment). It lets the checklist handler, issuer-component selector and DID-resolver selector be
+/// constructed, but fails loudly and clearly if an IdentityHub step is ever actually executed here —
+/// i.e. WalletProvider=IdentityHub was selected without supplying the IdentityHub config.
 /// </summary>
-public class NotConfiguredIdentityHubService : IIdentityHubService
+public class NotConfiguredIdentityHubService : IIdentityHubService, IDidDocumentResolver
 {
     private const string Message =
         "The IdentityHub wallet was invoked but the 'IdentityHub' configuration section is not configured for this deployment. " +
-        "Set WalletProvider=IdentityHub only where the IdentityHub section (BaseAddress, ApiKey, IssuerService settings, …) is supplied.";
+        "Set WalletProvider=IdentityHub only where the IdentityHub section (BaseAddress, ApiKey, UniversalResolverAddress, IssuerService settings, …) is supplied.";
 
     public Task<(string Did, JsonDocument DidDocument)> CreateHolderWalletAsync(string bpn, string companyName, CancellationToken cancellationToken) =>
         throw new ConfigurationException(Message);
 
     public Task RequestCredentialAsync(string bpn, string credentialType, string credentialDefinitionId, CancellationToken cancellationToken) =>
+        throw new ConfigurationException(Message);
+
+    public int MaxValidationTimeInDays => throw new ConfigurationException(Message);
+
+    public Task<bool> ValidateDid(string did, CancellationToken cancellationToken) =>
         throw new ConfigurationException(Message);
 }

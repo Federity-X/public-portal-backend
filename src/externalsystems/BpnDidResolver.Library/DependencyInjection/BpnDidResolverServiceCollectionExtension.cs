@@ -45,7 +45,11 @@ public static class BpnDidResolverServiceCollectionExtension
         });
         services
             .AddTransient<IBpnDidResolverService, BpnDidResolverService>()
-            .AddTransient<IBpnDidResolverBusinessLogic, BpnDidResolverBusinessLogic>();
+            .AddTransient<IBpnDidResolverBusinessLogic, BpnDidResolverBusinessLogic>()
+            // Provider-neutral VALIDATE_DID_DOCUMENT. The keyed IDidDocumentResolver implementations
+            // are contributed by the wallet-provider libraries (AddDimService, AddIdentityHubService).
+            .AddTransient<IDidDocumentResolverSelector, DidDocumentResolverSelector>()
+            .AddTransient<IDidDocumentValidationBusinessLogic, DidDocumentValidationBusinessLogic>();
 
         return services;
     }

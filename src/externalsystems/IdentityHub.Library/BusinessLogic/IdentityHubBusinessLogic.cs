@@ -56,11 +56,10 @@ public class IdentityHubBusinessLogic(IPortalRepositories portalRepositories, II
                     checklist.Comment = $"IdentityHub holder wallet created: {did}";
                 },
                 // Hand off to the existing DID-validation chain (VALIDATE_DID_DOCUMENT ->
-                // TRANSMIT_BPN_DID -> REQUEST_BPN_CREDENTIAL), shared with the DIM path. NOTE: the
-                // VALIDATE_DID_DOCUMENT step is executed by the DIM business logic (see
-                // ApplicationChecklistHandlerService), whose "Dim" settings are validated at startup — so an
-                // IdentityHub-only worker must still supply a valid "Dim" configuration section (it uses only
-                // the universal-resolver part for DID validation).
+                // TRANSMIT_BPN_DID -> REQUEST_BPN_CREDENTIAL), shared with the DIM path.
+                // VALIDATE_DID_DOCUMENT resolves through the IDidDocumentResolver keyed to this
+                // deployment's wallet provider, so it uses IdentityHub:UniversalResolverAddress - no
+                // "Dim" configuration section is needed.
                 new[] { ProcessStepTypeId.VALIDATE_DID_DOCUMENT },
                 null,
                 true,

@@ -19,6 +19,7 @@
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Org.Eclipse.TractusX.Portal.Backend.BpnDidResolver.Library;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Validation;
 using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
@@ -31,32 +32,33 @@ public static class IdentityHubServiceCollectionExtension
 {
     public static IServiceCollection AddIdentityHubService(this IServiceCollection services, IConfigurationSection section)
     {
-        services.AddOptions<IdentityHubSettings>().Bind(section);
+        var options = services.AddOptions<IdentityHubSettings>().Bind(section);
 
         // The worker reacts to whatever wallet step is scheduled, so it cannot know at startup whether the
         // IdentityHub wallet is selected. We treat "the IdentityHub section is present" as the signal that
         // this deployment intends to use it: when present we enforce the (Required) settings (ValidateOnStart
         // fails fast on a partial/typo'd section) and wire the real admin-API client; when entirely absent
-        // (a DIM/Custodian-only stack) we register a guard instead of a placeholder base address, so a
+        // (a DIM/Custodian-only stack) we register guards instead of placeholder addresses, so a
         // CREATE_IDENTITY_HUB_WALLET step accidentally scheduled here (WalletProvider=IdentityHub without the
         // matching config) fails immediately with a clear, actionable error rather than an obscure DNS error.
         if (section.Exists() && section.GetChildren().Any())
         {
-            services.AddOptions<IdentityHubSettings>().Bind(section).EnvironmentalValidation(section);
-
-            var configuredBaseAddress = section["BaseAddress"];
-            var baseAddress = string.IsNullOrWhiteSpace(configuredBaseAddress)
-                ? null
-                : configuredBaseAddress.EndsWith('/') ? configuredBaseAddress : $"{configuredBaseAddress}/";
+            options.EnvironmentalValidation(section);
 
             // Plain HTTP client — the IdentityHub admin API authenticates with an x-api-key
             // header (set per request), not the OAuth/KeyVault flow the DIM/Custodian clients use.
             services.AddHttpClient<IIdentityHubService, IdentityHubService>(client =>
-                client.BaseAddress = new Uri(baseAddress ?? throw new ConfigurationException("IdentityHub:BaseAddress must be set when the IdentityHub wallet is configured")));
+                client.BaseAddress = new Uri(TrailingSlashed(section, "BaseAddress")));
+
+            services.AddHttpClient(IdentityHubDidDocumentResolver.HttpClientName, client =>
+                client.BaseAddress = new Uri(TrailingSlashed(section, "UniversalResolverAddress")));
+
+            services.AddKeyedTransient<IDidDocumentResolver, IdentityHubDidDocumentResolver>(WalletProviderId.IdentityHub);
         }
         else
         {
             services.AddTransient<IIdentityHubService, NotConfiguredIdentityHubService>();
+            services.AddKeyedTransient<IDidDocumentResolver, NotConfiguredIdentityHubService>(WalletProviderId.IdentityHub);
         }
 
         services.AddTransient<IIdentityHubBusinessLogic, IdentityHubBusinessLogic>();
@@ -66,5 +68,16 @@ public static class IdentityHubServiceCollectionExtension
         services.AddKeyedTransient<IIssuerComponentService, IdentityHubIssuerComponentService>(WalletProviderId.IdentityHub);
 
         return services;
+    }
+
+    private static string TrailingSlashed(IConfigurationSection section, string key)
+    {
+        var value = section[key];
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ConfigurationException($"IdentityHub:{key} must be set when the IdentityHub wallet is configured");
+        }
+
+        return value.EndsWith('/') ? value : $"{value}/";
     }
 }

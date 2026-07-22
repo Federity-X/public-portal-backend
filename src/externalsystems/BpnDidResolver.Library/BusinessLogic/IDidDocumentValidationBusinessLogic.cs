@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2024 Contributors to the Eclipse Foundation
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information regarding copyright ownership.
@@ -17,22 +17,16 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
 
-namespace Org.Eclipse.TractusX.Portal.Backend.Dim.Library.BusinessLogic;
+namespace Org.Eclipse.TractusX.Portal.Backend.BpnDidResolver.Library.BusinessLogic;
 
-public interface IDimBusinessLogic
+public interface IDidDocumentValidationBusinessLogic
 {
     /// <summary>
-    /// Creates the wallet for the company of the application
+    /// Polls the universal resolver of the configured wallet provider until the holder's did:web
+    /// resolves, then hands off to TRANSMIT_BPN_DID. Provider-neutral: which resolver is used is
+    /// decided by the deployment's wallet provider, not by the wallet that created the DID.
     /// </summary>
-    /// <param name="context">Context for the dim wallet creation.</param>
-    /// <param name="cancellationToken">CancellationToken</param>
-    /// <returns>Returns the checklist data</returns>
-    Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> CreateDimWalletAsync(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken);
-
-    Task ProcessDimResponse(string bpn, DimWalletData data, CancellationToken cancellationToken);
-
-    Task UpdateDidDocument(string bpn, DidDocumentData data, CancellationToken cancellationToken);
+    Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> ValidateDidDocument(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken);
 }

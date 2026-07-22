@@ -46,6 +46,21 @@ public class IdentityHubSettings
     public string DidDocumentBaseLocation { get; set; } = null!;
 
     /// <summary>
+    /// Universal resolver used by the VALIDATE_DID_DOCUMENT checklist step to confirm the holder's
+    /// did:web has been published. IdentityHub supplies its own so that a deployment using this wallet
+    /// does not have to configure a Dim section purely to reach a resolver.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string UniversalResolverAddress { get; set; } = null!;
+
+    /// <summary>
+    /// How long the holder's did:web may stay unresolvable before VALIDATE_DID_DOCUMENT fails and waits
+    /// for a manual retrigger. Mirrors Dim:MaxValidationTimeInDays.
+    /// </summary>
+    [Required]
+    public int MaxValidationTimeInDays { get; set; }
+
+    /// <summary>
     /// Base address of the IdentityHub Credential Service API, used to build the holder's
     /// CredentialService serviceEndpoint baked into its ParticipantContext, i.e.
     /// {CredentialServiceBaseAddress}/v1/participants/{participantContextId}.

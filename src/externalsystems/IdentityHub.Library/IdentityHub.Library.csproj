@@ -31,6 +31,7 @@
     <ProjectReference Include="..\..\framework\Framework.HttpClientExtensions\Framework.HttpClientExtensions.csproj" />
     <ProjectReference Include="..\..\framework\Framework.Token\Framework.Token.csproj" />
     <ProjectReference Include="..\IssuerComponent.Library\IssuerComponent.Library.csproj" />
+    <ProjectReference Include="..\BpnDidResolver.Library\BpnDidResolver.Library.csproj" />
     <ProjectReference Include="..\..\portalbackend\PortalBackend.DBAccess\PortalBackend.DBAccess.csproj" />
     <ProjectReference Include="..\..\processes\ApplicationChecklist.Library\ApplicationChecklist.Library.csproj" />
   </ItemGroup>
