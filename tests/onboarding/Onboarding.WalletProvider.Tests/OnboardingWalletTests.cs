@@ -20,6 +20,7 @@
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using Xunit;
 
@@ -49,12 +50,23 @@ public class OnboardingWalletTests
         sut.Provider.Should().Be(expected);
     }
 
-    [Fact]
-    public void GetProvider_WithoutConfiguration_DefaultsToDim()
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    public void GetProvider_WithoutConfiguration_FailsFast(string? configured)
     {
-        var sut = BuildProvider().GetRequiredService<IWalletProviderResolver>();
+        // No default: the setting this replaces (UseDimWallet) shipped as false i.e. Custodian, so
+        // defaulting either way would silently move an existing deployment onto a different wallet.
+        var provider = configured is null
+            ? BuildProvider()
+            : BuildProvider(("Onboarding:WalletProvider", configured));
 
-        sut.Provider.Should().Be(WalletProviderId.Dim);
+        var act = () => provider.GetRequiredService<IWalletProviderResolver>();
+
+        // The message must name the setting - this is the only thing an operator upgrading from
+        // UseDimWallet has to go on.
+        act.Should().Throw<OptionsValidationException>()
+            .Which.Message.Should().Contain(nameof(OnboardingWalletSettings.WalletProvider));
     }
 
     [Fact]
@@ -64,6 +76,7 @@ public class OnboardingWalletTests
 
         var act = () => provider.GetRequiredService<IWalletProviderResolver>();
 
-        act.Should().Throw<Exception>();
+        act.Should().Throw<InvalidOperationException>()
+            .Which.Message.Should().Contain("Onboarding:WalletProvider");
     }
 }

@@ -19,6 +19,7 @@
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
@@ -28,7 +29,11 @@ public class WalletProviderResolver : IWalletProviderResolver
 {
     public WalletProviderResolver(IOptions<OnboardingWalletSettings> options, ILogger<WalletProviderResolver> logger)
     {
-        Provider = options.Value.WalletProvider;
+        // Normally unreachable: the setting is [Required] and ValidateOnStart fails the host first. This
+        // still catches the case where configuration validation is deliberately skipped
+        // (SKIP_CONFIGURATION_VALIDATION, used by the openapi generation build step).
+        Provider = options.Value.WalletProvider
+            ?? throw new ConfigurationException($"{OnboardingWalletServiceCollectionExtensions.ConfigSection}:{nameof(OnboardingWalletSettings.WalletProvider)} must be set to one of {string.Join(", ", Enum.GetNames<WalletProviderId>())}");
         // Singleton — logged once, effectively at startup, so the resolved provider is visible in the logs
         // of every deployable that participates in onboarding.
         logger.LogInformation("Onboarding wallet provider resolved: {WalletProvider}", Provider);

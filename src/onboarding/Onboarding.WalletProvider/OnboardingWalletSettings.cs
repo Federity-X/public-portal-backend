@@ -18,6 +18,7 @@
  ********************************************************************************/
 
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
+using System.ComponentModel.DataAnnotations;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 
@@ -30,9 +31,16 @@ namespace Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 public class OnboardingWalletSettings
 {
     /// <summary>
-    /// Which wallet/issuer the onboarding checklist provisions credentials into. Defaults to
-    /// <see cref="WalletProviderId.Dim"/> (the mainstream managed wallet); set to
-    /// <see cref="WalletProviderId.IdentityHub"/> or <see cref="WalletProviderId.Custodian"/> per deployment.
+    /// Which wallet/issuer the onboarding checklist provisions credentials into
+    /// (<see cref="WalletProviderId.Dim"/>, <see cref="WalletProviderId.IdentityHub"/> or
+    /// <see cref="WalletProviderId.Custodian"/>).
+    /// <para>
+    /// Deliberately required with no default. This setting replaces the per-feature UseDimWallet flags,
+    /// whose shipped value was false (i.e. Custodian); defaulting it either way would silently move some
+    /// existing deployment onto a different wallet on upgrade. Failing to start with a message naming
+    /// the key is the safer trade, and it is a one-line change per environment.
+    /// </para>
     /// </summary>
-    public WalletProviderId WalletProvider { get; set; } = WalletProviderId.Dim;
+    [Required]
+    public WalletProviderId? WalletProvider { get; set; }
 }
