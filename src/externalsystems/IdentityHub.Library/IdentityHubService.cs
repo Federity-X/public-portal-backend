@@ -44,10 +44,11 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
     /// <inheritdoc />
     public async Task<(string Did, JsonDocument DidDocument)> CreateHolderWalletAsync(string bpn, string companyName, CancellationToken cancellationToken)
     {
+        var normalizedBpn = NormalizeBpn(bpn);
         // EDC/IdentityHub 0.17.0 uses a PLAIN participantContextId in URL paths and in the
         // CredentialService serviceEndpoint baked into the DID document.
-        var participantContextId = bpn.ToLowerInvariant();
-        var did = $"did:web:{_settings.DidDocumentBaseLocation}:{bpn}";
+        var participantContextId = normalizedBpn.ToLowerInvariant();
+        var did = BuildDid(normalizedBpn);
         var credentialServiceUrl = $"{_settings.CredentialServiceBaseAddress.TrimEnd('/')}/v1/participants/{participantContextId}";
 
         var body = new CreateParticipantRequest(
@@ -70,10 +71,10 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
         // onboarded company later runs its OWN connector; that is a separate, out-of-scope step (Vault key
         // `edc-wallet-secret`), and hoarding an unused secret is the worse default. See the BE-293
         // "Production hardening" notes for what a real deployment must do at that point.
-        await PostWithApiKeyAsync("v1alpha/participants", body, $"create holder participant-context for BPN {bpn}", cancellationToken).ConfigureAwait(false);
+        await PostWithApiKeyAsync("v1alpha/participants", body, $"create holder participant-context for BPN {normalizedBpn}", cancellationToken).ConfigureAwait(false);
 
         // Activate the context (idempotent — 409/2xx both fine).
-        await PostWithApiKeyAsync($"v1alpha/participants/{participantContextId}/state?isActive=true", null, $"activate holder participant-context for BPN {bpn}", cancellationToken).ConfigureAwait(false);
+        await PostWithApiKeyAsync($"v1alpha/participants/{participantContextId}/state?isActive=true", null, $"activate holder participant-context for BPN {normalizedBpn}", cancellationToken).ConfigureAwait(false);
 
         // The DID document is fully resolved + validated downstream by the VALIDATE_DID_DOCUMENT
         // checklist step (universal resolver + DID schema); persist the did:web reference here.
@@ -84,12 +85,13 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
     /// <inheritdoc />
     public async Task RequestCredentialAsync(string bpn, string credentialType, string credentialDefinitionId, CancellationToken cancellationToken)
     {
-        var participantContextId = bpn.ToLowerInvariant();
+        var normalizedBpn = NormalizeBpn(bpn);
+        var participantContextId = normalizedBpn.ToLowerInvariant();
         // The IssuerService only issues to holders it knows: the holder's DCP credential request is
         // rejected with 401 "Participant not found" unless the holder is first registered with the
         // IssuerService (POST /api/admin/v1alpha/participants/{issuerCtx}/holders). Register it here
         // (idempotent — 409 = already registered), mirroring the umbrella seed's per-participant step.
-        await RegisterHolderWithIssuerAsync(bpn, cancellationToken).ConfigureAwait(false);
+        await RegisterHolderWithIssuerAsync(normalizedBpn, cancellationToken).ConfigureAwait(false);
 
         // holderPid is the PRIMARY KEY of the holder-credential-request store, so it MUST be
         // unique per (participant, credential type) — a constant collides across participants on
@@ -104,17 +106,28 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
         await PostWithApiKeyAsync(
             $"v1alpha/participants/{participantContextId}/credentials/request",
             body,
-            $"request {credentialType} for BPN {bpn}",
+            $"request {credentialType} for BPN {normalizedBpn}",
             cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task RegisterHolderWithIssuerAsync(string bpn, CancellationToken cancellationToken)
+    /// <summary>
+    /// BPNs are canonically upper-case, and the Portal upper-cases them itself when correlating issuer
+    /// callbacks (see GetApplicationIdByBpn). Normalise at every entry point so the did:web and the
+    /// participant-context id are always derived from the same value — a lower-case input would
+    /// otherwise produce a different DID against the same context id, and the "409 == already
+    /// provisioned" path would silently mask the mismatch.
+    /// </summary>
+    private static string NormalizeBpn(string bpn) => bpn.ToUpperInvariant();
+
+    private string BuildDid(string normalizedBpn) => $"did:web:{_settings.DidDocumentBaseLocation}:{normalizedBpn}";
+
+    private async Task RegisterHolderWithIssuerAsync(string normalizedBpn, CancellationToken cancellationToken)
     {
-        var did = $"did:web:{_settings.DidDocumentBaseLocation}:{bpn}";
+        var did = BuildDid(normalizedBpn);
         // The IssuerService admin API uses the PLAIN participant-context id in the URL path (like the
         // IdentityHub identity API, EDC 0.17.0 / IH #937), NOT base64 — a base64 id yields 404.
         var url = $"{_settings.IssuerAdminBaseAddress.TrimEnd('/')}/v1alpha/participants/{_settings.IssuerParticipantId}/holders";
-        var body = new RegisterHolderRequest(did, bpn, $"{bpn} onboarding holder", new HolderProperties(_settings.FrameworkContractVersion));
+        var body = new RegisterHolderRequest(did, normalizedBpn, $"{normalizedBpn} onboarding holder", new HolderProperties(_settings.FrameworkContractVersion));
 
         using var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
@@ -130,7 +143,7 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
         if (!response.IsSuccessStatusCode)
         {
             var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-            throw new ServiceException($"IssuerService holder registration for BPN {bpn} failed with status {response.StatusCode}: {content}", response.StatusCode);
+            throw new ServiceException($"IssuerService holder registration for BPN {normalizedBpn} failed with status {response.StatusCode}: {content}", response.StatusCode);
         }
     }
 

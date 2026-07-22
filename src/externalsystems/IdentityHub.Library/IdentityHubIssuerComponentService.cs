@@ -18,6 +18,7 @@
  ********************************************************************************/
 
 using Microsoft.Extensions.Options;
+using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Service;
 
@@ -35,6 +36,14 @@ public class IdentityHubIssuerComponentService(IIdentityHubService identityHubSe
 {
     private readonly IdentityHubSettings _settings = options.Value;
 
+    /// <inheritdoc />
+    /// <remarks>
+    /// The holder requests its own credentials from the IssuerService over DCP, so the Portal never acts
+    /// on its behalf. Its wallet row stores placeholder bytes rather than a real client secret, and
+    /// attempting to decrypt one would fail.
+    /// </remarks>
+    public bool HolderRequestsOwnCredentials => true;
+
     public async Task<bool> CreateBpnlCredential(CreateBpnCredentialRequest data, CancellationToken cancellationToken)
     {
         await identityHubService.RequestCredentialAsync(data.BusinessPartnerNumber, _settings.BpnCredentialType, _settings.BpnCredentialDefinitionId, cancellationToken).ConfigureAwait(false);
@@ -50,6 +59,8 @@ public class IdentityHubIssuerComponentService(IIdentityHubService identityHubSe
     public Task<Guid> CreateFrameworkCredential(CreateFrameworkCredentialRequest data, string token, CancellationToken cancellationToken) =>
         // Use-case framework credentials are a post-onboarding flow and are out of scope for the
         // BE-293 IdentityHub onboarding wallet. Fail loud rather than silently no-op (repo rule:
-        // avoid fallbacks) so a mis-routed framework request is caught, not lost.
-        throw new NotSupportedException("Framework credential issuance via IdentityHub is not supported (BE-293 onboarding scope covers BPN + Membership only).");
+        // avoid fallbacks) so a mis-routed framework request is caught, not lost. ConflictException
+        // (not NotSupportedException) so the middleware maps it to a problem-detail response instead
+        // of an unmapped 500 - this reaches an end user through POST companydata/useCaseParticipation.
+        throw new ConflictException("Framework credential issuance via IdentityHub is not supported (the IdentityHub onboarding wallet covers BPN + Membership credentials only).");
 }

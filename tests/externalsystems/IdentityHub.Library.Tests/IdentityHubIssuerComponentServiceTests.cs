@@ -20,6 +20,7 @@
 using FakeItEasy;
 using FluentAssertions;
 using Microsoft.Extensions.Options;
+using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
 using Xunit;
 
@@ -70,12 +71,22 @@ public class IdentityHubIssuerComponentServiceTests
     }
 
     [Fact]
-    public async Task CreateFrameworkCredential_ThrowsNotSupported()
+    public async Task CreateFrameworkCredential_ThrowsConflict()
     {
         var request = new CreateFrameworkCredentialRequest("did:web:holder", Bpn, "framework", Guid.NewGuid(), null, null);
 
         Func<Task> act = () => _sut.CreateFrameworkCredential(request, "token", CancellationToken.None);
 
-        await act.Should().ThrowAsync<NotSupportedException>();
+        // ConflictException (not NotSupportedException) so the error-handling middleware maps it to a
+        // problem-detail response - this surfaces to an end user via companydata/useCaseParticipation.
+        await act.Should().ThrowAsync<ConflictException>();
+    }
+
+    [Fact]
+    public void HolderRequestsOwnCredentials_IsTrue()
+    {
+        // The holder pulls its credentials over DCP, so the Portal must not gather or decrypt
+        // technical-user credentials for it - its wallet row holds placeholder bytes.
+        _sut.HolderRequestsOwnCredentials.Should().BeTrue();
     }
 }

@@ -80,6 +80,41 @@ public class IdentityHubServiceTests
             .Be($"https://ih.example.org/api/identity/v1alpha/participants/{ParticipantContextId}/state?isActive=true");
     }
 
+    [Theory]
+    [InlineData("bpnl000000000001")]
+    [InlineData("BpNl000000000001")]
+    public async Task CreateHolderWalletAsync_WithNonCanonicalBpnCasing_ProducesTheSameDidAndContextId(string unnormalizedBpn)
+    {
+        // A lower-case BPN must not yield a different did:web against the same participant-context id -
+        // the "409 == already provisioned" path would otherwise silently mask the mismatch.
+        var handler = new RecordingHandler(_ => (HttpStatusCode.OK, null));
+        var sut = CreateSut(handler);
+
+        var (did, _) = await sut.CreateHolderWalletAsync(unnormalizedBpn, "Test Corp", CancellationToken.None);
+
+        did.Should().Be(Did);
+        using var body = JsonDocument.Parse(handler.Requests[0].Body!);
+        body.RootElement.GetProperty("participantContextId").GetString().Should().Be(ParticipantContextId);
+        body.RootElement.GetProperty("did").GetString().Should().Be(Did);
+        handler.Requests[1].Request.RequestUri!.AbsoluteUri.Should()
+            .Be($"https://ih.example.org/api/identity/v1alpha/participants/{ParticipantContextId}/state?isActive=true");
+    }
+
+    [Fact]
+    public async Task RequestCredentialAsync_WithNonCanonicalBpnCasing_RegistersTheCanonicalDid()
+    {
+        var handler = new RecordingHandler(_ => (HttpStatusCode.OK, null));
+        var sut = CreateSut(handler);
+
+        await sut.RequestCredentialAsync("bpnl000000000001", "BpnCredential", "cd-bpn", CancellationToken.None);
+
+        using var register = JsonDocument.Parse(handler.Requests[0].Body!);
+        register.RootElement.GetProperty("did").GetString().Should().Be(Did);
+        register.RootElement.GetProperty("holderId").GetString().Should().Be(Bpn);
+        handler.Requests[1].Request.RequestUri!.AbsoluteUri.Should()
+            .Be($"https://ih.example.org/api/identity/v1alpha/participants/{ParticipantContextId}/credentials/request");
+    }
+
     [Fact]
     public async Task CreateHolderWalletAsync_CreateConflict_IsIdempotent()
     {
