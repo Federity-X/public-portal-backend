@@ -68,6 +68,20 @@ public class IdentityHubSettings
     public int MaxValidationTimeInDays { get; set; }
 
     /// <summary>
+    /// How long an AWAIT_*_CREDENTIAL_RESPONSE step may wait for the holder-side callback before it is
+    /// failed for a manual retrigger.
+    /// <para>
+    /// Unlike the other IdentityHub settings this has a usable default, because a deployment that never
+    /// tunes it still needs the deadline: the callback comes from a separately deployed extension, so
+    /// "no callback ever arrives" is a realistic outcome and an unbounded wait parks the application
+    /// forever with nothing surfacing. One day is generous against a slow issuance or a brief IdentityHub
+    /// restart (whose replay re-delivers anyway) while still bounding the hang.
+    /// </para>
+    /// </summary>
+    [Range(1, int.MaxValue)]
+    public int MaxCredentialWaitTimeInDays { get; set; } = 1;
+
+    /// <summary>
     /// Base address of the IdentityHub Credential Service API, used to build the holder's
     /// CredentialService serviceEndpoint baked into its ParticipantContext, i.e.
     /// {CredentialServiceBaseAddress}/v1/participants/{participantContextId}.

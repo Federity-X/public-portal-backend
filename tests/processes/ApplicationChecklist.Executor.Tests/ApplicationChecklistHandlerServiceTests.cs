@@ -27,6 +27,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Tests.Shared;
 using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Executor;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
@@ -46,6 +47,8 @@ public class ChecklistHandlerServiceTests
     private readonly IIssuerComponentBusinessLogic _issuerComponentBusinessLogic;
     private readonly IBpnDidResolverBusinessLogic _bpnDidResolverBusinessLogic;
     private readonly IDidDocumentValidationBusinessLogic _didDocumentValidationBusinessLogic;
+    private readonly IIdentityHubCredentialAwaitBusinessLogic _identityHubCredentialAwaitBusinessLogic;
+    private readonly IWalletProviderResolver _walletProviderResolver;
     private readonly IApplicationActivationService _applicationActivationService;
     private readonly IApplicationChecklistService _checklistService;
     private readonly IFixture _fixture;
@@ -66,6 +69,8 @@ public class ChecklistHandlerServiceTests
         _issuerComponentBusinessLogic = A.Fake<IIssuerComponentBusinessLogic>();
         _bpnDidResolverBusinessLogic = A.Fake<IBpnDidResolverBusinessLogic>();
         _didDocumentValidationBusinessLogic = A.Fake<IDidDocumentValidationBusinessLogic>();
+        _identityHubCredentialAwaitBusinessLogic = A.Fake<IIdentityHubCredentialAwaitBusinessLogic>();
+        _walletProviderResolver = A.Fake<IWalletProviderResolver>();
         _applicationActivationService = A.Fake<IApplicationActivationService>();
         _checklistService = A.Fake<IApplicationChecklistService>();
     }
@@ -280,6 +285,37 @@ public class ChecklistHandlerServiceTests
         result.Message.Should().Be($"no execution defined for processStep {stepTypeId}");
     }
 
+    [Theory]
+    [InlineData(WalletProviderId.IdentityHub, true)]
+    [InlineData(WalletProviderId.Dim, false)]
+    [InlineData(WalletProviderId.Custodian, false)]
+    public void AwaitCredentialSteps_AreExecutableOnlyForIdentityHub(WalletProviderId provider, bool expectedExecutable)
+    {
+        // The AWAIT steps are advanced by the issuer callback. Only the IdentityHub path bounds that wait,
+        // because its callback comes from a separately deployed extension that may never post. DIM and
+        // Custodian must keep executing exactly the step set they always have.
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(provider);
+
+        var sut = CreateSut();
+
+        sut.IsExecutableProcessStep(ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE).Should().Be(expectedExecutable);
+        sut.IsExecutableProcessStep(ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE).Should().Be(expectedExecutable);
+    }
+
+    [Fact]
+    public void AwaitCredentialSteps_ForIdentityHub_DispatchToTheAwaitLogic()
+    {
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(WalletProviderId.IdentityHub);
+        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(Guid.NewGuid(), default, ImmutableDictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>.Empty, Enumerable.Empty<ProcessStepTypeId>());
+        var sut = CreateSut();
+
+        sut.GetProcessStepExecution(ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE).ProcessFunc(context, CancellationToken.None);
+        sut.GetProcessStepExecution(ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE).ProcessFunc(context, CancellationToken.None);
+
+        A.CallTo(() => _identityHubCredentialAwaitBusinessLogic.AwaitBpnCredentialResponse(context, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+        A.CallTo(() => _identityHubCredentialAwaitBusinessLogic.AwaitMembershipCredentialResponse(context, A<CancellationToken>._)).MustHaveHappenedOnceExactly();
+    }
+
     private IApplicationChecklistHandlerService CreateSut() =>
         new ApplicationChecklistHandlerService(
             _bpdmBusinessLogic,
@@ -291,6 +327,8 @@ public class ChecklistHandlerServiceTests
             _issuerComponentBusinessLogic,
             _bpnDidResolverBusinessLogic,
             _didDocumentValidationBusinessLogic,
+            _identityHubCredentialAwaitBusinessLogic,
+            _walletProviderResolver,
             _applicationActivationService,
             _checklistService);
 }

@@ -34,6 +34,7 @@
       <ProjectReference Include="..\..\externalsystems\IssuerComponent.Library\IssuerComponent.Library.csproj" />
       <ProjectReference Include="..\..\framework\Framework.Processes.Worker.Library\Framework.Processes.Worker.Library.csproj" />
       <ProjectReference Include="..\..\portalbackend\PortalBackend.DBAccess\PortalBackend.DBAccess.csproj" />
+      <ProjectReference Include="..\..\onboarding\Onboarding.WalletProvider\Onboarding.WalletProvider.csproj" />
       <ProjectReference Include="..\ApplicationChecklist.Config\ApplicationChecklist.Config.csproj" />
       <ProjectReference Include="..\..\registration\ApplicationActivation.Library\ApplicationActivation.Library.csproj" />
     </ItemGroup>

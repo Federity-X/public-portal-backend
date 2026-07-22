@@ -68,6 +68,22 @@ Portal's existing BPN-keyed issuer endpoints, which advance the `AWAIT_*_CREDENT
 **This extension must be deployed and configured, or applications stall at
 `AWAIT_BPN_CREDENTIAL_RESPONSE` with no error anywhere.**
 
+### The wait is bounded
+
+`AWAIT_BPN_CREDENTIAL_RESPONSE` and `AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE` are advanced by the issuer
+callback rather than by the worker, so by default they wait forever. For **`WalletProvider=IdentityHub`
+only**, the worker also gives them a deadline of `IdentityHub:MaxCredentialWaitTimeInDays` (default `1`):
+
+- within the budget the step stays `TODO` and the callback finalizes it exactly as before — the deadline
+  never competes with the happy path
+- past the budget the step is `FAILED` with `No … credential response was received within N day(s)`,
+  a `WARN` naming the likely causes, and `RETRIGGER_REQUEST_*_CREDENTIAL` scheduled
+
+DIM and Custodian are unaffected: their issuer posts its own callback, so their executable step set is
+unchanged. This exists because the IdentityHub callback comes from a separately deployed extension that
+can be absent, misconfigured, or silently skipping a mismatched credential type — without a deadline the
+application parks indefinitely with nothing surfacing anywhere.
+
 ### Recovering a credential step
 
 Retrigger is the **canonical recovery** for both IdentityHub-originated outcomes — an application stuck
@@ -143,6 +159,7 @@ Processes.Worker and Administration (see their `appsettings.json` for the full k
 | `DidDocumentBaseLocation` | the DID is `did:web:{DidDocumentBaseLocation}:{BPN}`; must be resolvable and registered in BDRS |
 | `UniversalResolverAddress` | used by `VALIDATE_DID_DOCUMENT`. Must answer `GET {address}/1.0/identifiers/{urlEncodedDid}` with a DIF resolution result — i.e. `200` plus `didResolutionMetadata.error` while the DID is unpublished, and no `error` once it resolves. Any in-cluster `did:web` resolver shim has to implement that shape; it is the same call the DIM resolver makes |
 | `MaxValidationTimeInDays` | how long the DID may stay unresolvable before the step fails for retrigger |
+| `MaxCredentialWaitTimeInDays` | how long an `AWAIT_*_CREDENTIAL_RESPONSE` may wait for the callback before failing for retrigger. **Optional, defaults to `1`** — unlike the keys above it has a usable default, because a deployment that never tunes it still needs the deadline |
 | `CredentialServiceBaseAddress` | baked into the holder's `CredentialService` service endpoint |
 | `IssuerDid`, `IssuerAdminBaseAddress`, `IssuerAdminApiKey`, `IssuerParticipantId` | IssuerService. `IssuerParticipantId` goes **plain** into the URL path, not base64 (EDC 0.17.0 / IdentityHub #937) — a base64 value yields 404. **`IssuerAdminApiKey` is secret** |
 | `BpnCredentialType`/`BpnCredentialDefinitionId`, `MembershipCredentialType`/`MembershipCredentialDefinitionId` | see the sync warning above |

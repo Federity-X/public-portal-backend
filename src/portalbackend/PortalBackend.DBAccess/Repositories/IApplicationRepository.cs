@@ -103,6 +103,12 @@ public interface IApplicationRepository
 
     Task<bool> IsValidApplicationForCompany(Guid applicationId, Guid companyId);
     Task<(bool Exists, string? Did, IEnumerable<DateTimeOffset> ProcessStepsDateCreated)> GetDidApplicationId(Guid applicationId);
+
+    /// <summary>
+    /// DateCreated of the application's currently active (TODO) process steps of the given type. Lets a
+    /// polling step measure how long it has been waiting, so an unbounded wait can be given a deadline.
+    /// </summary>
+    Task<IEnumerable<DateTimeOffset>> GetActiveProcessStepsDateCreated(Guid applicationId, ProcessStepTypeId processStepTypeId);
     Task<(bool Exists, string? Holder, string? BusinessPartnerNumber, WalletInformation? WalletInformation)> GetBpnlCredentialIformationByApplicationId(Guid applicationId);
     Task<(bool Exists, string? Did, string? Bpn)> GetDidAndBpnForApplicationId(Guid applicationId);
     Task<(bool Exists, string? Did)> GetDidForApplicationId(Guid applicationId);

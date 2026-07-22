@@ -23,6 +23,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.BpnDidResolver.Library;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
+using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using Xunit;
 
@@ -66,6 +67,17 @@ public class IdentityHubServiceCollectionExtensionTests
         sut.GetRequiredKeyedService<IDidDocumentResolver>(WalletProviderId.IdentityHub)
             .Should().BeOfType<IdentityHubDidDocumentResolver>();
         sut.GetRequiredService<IOptions<IdentityHubSettings>>().Value.MaxValidationTimeInDays.Should().Be(7);
+    }
+
+    [Fact]
+    public void CredentialAwaitLogic_IsRegisteredForEveryDeployment()
+    {
+        // ApplicationChecklistHandlerService takes it unconditionally and decides per provider whether to
+        // use it, so a missing registration would break worker startup for DIM and Custodian too.
+        var configuration = new ConfigurationBuilder().Build();
+        var descriptors = new ServiceCollection().AddIdentityHubService(configuration.GetSection("IdentityHub"));
+
+        descriptors.Should().ContainSingle(d => d.ServiceType == typeof(IIdentityHubCredentialAwaitBusinessLogic));
     }
 
     [Fact]

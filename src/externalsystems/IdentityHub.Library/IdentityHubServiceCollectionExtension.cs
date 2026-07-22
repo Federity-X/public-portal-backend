@@ -63,6 +63,11 @@ public static class IdentityHubServiceCollectionExtension
 
         services.AddTransient<IIdentityHubBusinessLogic, IdentityHubBusinessLogic>();
 
+        // Registered unconditionally: ApplicationChecklistHandlerService takes it for every deployment and
+        // decides per wallet provider whether to give the AWAIT steps a deadline. For a DIM/Custodian stack
+        // it is constructed and never invoked. IDateTimeProvider comes from AddPortalRepositories.
+        services.AddTransient<IIdentityHubCredentialAwaitBusinessLogic, IdentityHubCredentialAwaitBusinessLogic>();
+
         // Keyed issuer-component impl selected when WalletProvider == IdentityHub: a credential
         // REQUEST triggers the holder credential-request path instead of the DIM/ssi HTTP call.
         services.AddKeyedTransient<IIssuerComponentService, IdentityHubIssuerComponentService>(WalletProviderId.IdentityHub);
