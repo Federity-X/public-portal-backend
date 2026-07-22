@@ -86,6 +86,29 @@ Portal's existing BPN-keyed issuer endpoints, which advance the `AWAIT_*_CREDENT
 > produces no error on either side — the application simply never leaves
 > `AWAIT_*_CREDENTIAL_RESPONSE`. Both sides default to `BpnCredential` / `MembershipCredential`.
 
+### Use the seeded `sa-cl24-01` technical user
+
+No new Keycloak client is needed. `Seeder/Data/technical_users.json` already seeds **`sa-cl24-01`** —
+*"Technical User for the Connection between the SSI Credential Issuer and the Portal"* — holding exactly
+`update_application_bpn_credential` and `update_application_membership_credential`. Point
+`tx.portal.callback.client.id` at it rather than minting a new client, so the callback keeps the least
+privilege the seed already defines.
+
+### The Portal is safe under replayed callbacks
+
+The extension deduplicates in memory only, so a restart or rolling upgrade replays its whole retained
+terminal-state store. That is non-destructive here, and deliberately so:
+
+| Replay arrives… | Portal response | Effect |
+| --- | --- | --- |
+| after onboarding completed | `404` — no application in `SUBMITTED` for that BPN | none |
+| when the step already advanced | `409` — checklist entry "not eligible to run" | none |
+| while the step is genuinely awaiting | `204` | advances, as intended |
+
+Neither `404` nor `409` mutates state, so replay cannot corrupt an application. The extension must
+treat both as terminal rather than retryable — it has no backoff or attempt cap, so a response class it
+considers a failure re-fires every interval indefinitely.
+
 ## Configuration
 
 `Onboarding:WalletProvider` is top-level. The rest lives under `ApplicationChecklist:IdentityHub` in
@@ -93,10 +116,10 @@ Processes.Worker and Administration (see their `appsettings.json` for the full k
 
 | Key | Notes |
 | --- | --- |
-| `BaseAddress` | IdentityHub Identity (admin) API |
+| `BaseAddress` | IdentityHub Identity API. Must be the **admin** ingress — the public host answers `405` to the participant-context `POST` |
 | `ApiKey` | super-user key, sent as `x-api-key`. **Secret** |
 | `DidDocumentBaseLocation` | the DID is `did:web:{DidDocumentBaseLocation}:{BPN}`; must be resolvable and registered in BDRS |
-| `UniversalResolverAddress` | used by `VALIDATE_DID_DOCUMENT` |
+| `UniversalResolverAddress` | used by `VALIDATE_DID_DOCUMENT`. Must answer `GET {address}/1.0/identifiers/{urlEncodedDid}` with a DIF resolution result — i.e. `200` plus `didResolutionMetadata.error` while the DID is unpublished, and no `error` once it resolves. Any in-cluster `did:web` resolver shim has to implement that shape; it is the same call the DIM resolver makes |
 | `MaxValidationTimeInDays` | how long the DID may stay unresolvable before the step fails for retrigger |
 | `CredentialServiceBaseAddress` | baked into the holder's `CredentialService` service endpoint |
 | `IssuerDid`, `IssuerAdminBaseAddress`, `IssuerAdminApiKey`, `IssuerParticipantId` | IssuerService. `IssuerParticipantId` goes **plain** into the URL path, not base64 (EDC 0.17.0 / IdentityHub #937) — a base64 value yields 404. **`IssuerAdminApiKey` is secret** |
