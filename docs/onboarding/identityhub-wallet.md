@@ -68,6 +68,33 @@ Portal's existing BPN-keyed issuer endpoints, which advance the `AWAIT_*_CREDENT
 **This extension must be deployed and configured, or applications stall at
 `AWAIT_BPN_CREDENTIAL_RESPONSE` with no error anywhere.**
 
+### The Portal polls; the callback is the fast path
+
+For **`WalletProvider=IdentityHub`**, each worker cycle the `AWAIT_*_CREDENTIAL_RESPONSE` steps read the
+holder's request state directly from the IdentityHub:
+
+```
+GET {IdentityHub:BaseAddress}/v1alpha/participants/{lowercased-bpn}/credentials/request/{holderPid}
+    x-api-key: {IdentityHub:ApiKey}          holderPid = {lowercased-bpn}-{lowercased credential type}
+```
+
+| `status` | Portal |
+| --- | --- |
+| `ISSUED` | advance the checklist exactly as the callback would — **no callback required** |
+| `ERROR` | fail + retrigger. The DTO carries no `errorDetail`, so the reason is only in the holder's logs |
+| `CREATED`, `REQUESTING`, `REQUESTED`, or `404` | keep waiting, until the deadline below |
+
+This makes the Portal authoritative. The `portal-credential-callback` extension is still worth deploying
+— it advances onboarding in seconds rather than on the worker's polling interval — but it is no longer on
+the critical path, so a lost callback degrades onboarding to *slower* rather than *stuck*.
+
+It also closes a dead end: `holderPid` is deterministic **and** is the primary key of the holder request
+store, so a retrigger re-POSTs a colliding request that changes nothing. Reading the state needs no new
+request, so an already-`ISSUED` credential is now discoverable.
+
+The lookup is a direct primary-key read and terminal requests are retained indefinitely, so a poll
+reliably finds a completion the callback missed.
+
 ### The wait is bounded
 
 `AWAIT_BPN_CREDENTIAL_RESPONSE` and `AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE` are advanced by the issuer

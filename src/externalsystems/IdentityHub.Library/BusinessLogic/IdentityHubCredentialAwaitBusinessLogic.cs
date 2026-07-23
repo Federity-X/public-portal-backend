@@ -32,6 +32,7 @@ namespace Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 /// <inheritdoc />
 public class IdentityHubCredentialAwaitBusinessLogic(
     IPortalRepositories portalRepositories,
+    IIdentityHubService identityHubService,
     IDateTimeProvider dateTimeProvider,
     IOptions<IdentityHubSettings> options,
     ILogger<IdentityHubCredentialAwaitBusinessLogic> logger)
@@ -41,26 +42,60 @@ public class IdentityHubCredentialAwaitBusinessLogic(
 
     /// <inheritdoc />
     public Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> AwaitBpnCredentialResponse(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken) =>
-        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL, "BPN", _settings.BpnCredentialType);
+        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL, ProcessStepTypeId.REQUEST_MEMBERSHIP_CREDENTIAL, "BPN", _settings.BpnCredentialType, cancellationToken);
 
     /// <inheritdoc />
     public Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> AwaitMembershipCredentialResponse(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken) =>
-        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_MEMBERSHIP_CREDENTIAL, "Membership", _settings.MembershipCredentialType);
+        AwaitCredentialResponse(context, ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE, ProcessStepTypeId.RETRIGGER_REQUEST_MEMBERSHIP_CREDENTIAL, ProcessStepTypeId.START_CLEARING_HOUSE, "Membership", _settings.MembershipCredentialType, cancellationToken);
 
     private async Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> AwaitCredentialResponse(
         IApplicationChecklistService.WorkerChecklistProcessStepData context,
         ProcessStepTypeId awaitStepTypeId,
         ProcessStepTypeId retriggerStepTypeId,
+        ProcessStepTypeId nextStepTypeId,
         string credential,
-        string configuredCredentialType)
+        string configuredCredentialType,
+        CancellationToken cancellationToken)
     {
+        var bpn = await GetBusinessPartnerNumber(context.ApplicationId).ConfigureAwait(ConfigureAwaitOptions.None);
+        var state = await identityHubService.GetCredentialRequestStateAsync(bpn, configuredCredentialType, cancellationToken).ConfigureAwait(ConfigureAwaitOptions.None);
+
+        switch (state)
+        {
+            // The holder has it. The callback may have been lost, or may simply not have run yet - either
+            // way the Portal no longer needs it to make progress, so advance exactly as the callback would.
+            case HolderCredentialRequestState.Issued:
+                return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
+                    ProcessStepStatusId.DONE,
+                    entry => entry.ApplicationChecklistEntryStatusId = ApplicationChecklistEntryStatusId.DONE,
+                    Enumerable.Repeat(nextStepTypeId, 1),
+                    null,
+                    true,
+                    null);
+
+            // Terminal on the holder side. The IdentityHub's DTO carries no errorDetail, so the reason is
+            // only in the holder's own logs - say so rather than implying the Portal knows more.
+            case HolderCredentialRequestState.Failed:
+                logger.LogWarning(
+                    "IdentityHub reports the {Credential} credential request for application {ApplicationId} as ERROR. The reason is not exposed by the status API; check the holder logs for the {ConfiguredCredentialType} request.",
+                    credential,
+                    context.ApplicationId,
+                    configuredCredentialType);
+                return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
+                    ProcessStepStatusId.FAILED,
+                    null,
+                    Enumerable.Repeat(retriggerStepTypeId, 1),
+                    null,
+                    false,
+                    $"The IdentityHub reported the {credential} credential request as failed");
+        }
+
         var dateCreated = await GetWaitingSince(context.ApplicationId, awaitStepTypeId).ConfigureAwait(ConfigureAwaitOptions.None);
         var deadline = dateCreated.AddDays(_settings.MaxCredentialWaitTimeInDays);
         if (dateTimeProvider.OffsetNow <= deadline)
         {
-            // Still within budget. Stay in TODO without touching the checklist entry, so the callback can
-            // still finalize this step exactly as it does today - this handler only ever adds a deadline,
-            // it never competes with the callback for the happy path.
+            // Still in flight (CREATED / REQUESTING / REQUESTED), or not yet visible. Stay in TODO without
+            // touching the checklist entry, so the callback can still finalize this step the fast way.
             return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
                 ProcessStepStatusId.TODO,
                 null,
@@ -70,13 +105,14 @@ public class IdentityHubCredentialAwaitBusinessLogic(
                 null);
         }
 
-        // Ordered by likelihood given what a missing callback can actually mean. A holder-side send failure
-        // is NOT in this list: that transitions the holder to ERROR immediately and posts UNSUCCESSFUL, so
-        // it fails in seconds rather than reaching this deadline.
+        // Past the deadline and the IdentityHub still does not report a terminal state, so this is not a
+        // lost callback - polling would have seen ISSUED. Either the issuer accepted and never delivered
+        // (the request sits in REQUESTED), or the request never reached the IdentityHub at all.
         logger.LogWarning(
-            "No {Credential} credential callback for application {ApplicationId} within {MaxCredentialWaitTimeInDays} day(s); failing the step for retrigger. Likely causes: the IssuerService accepted the request but never delivered it (the holder stays in REQUESTED and reports nothing); the portal-credential-callback extension is not deployed or cannot reach the Portal; or its configured credential type does not match the {ConfiguredCredentialType} this Portal requested.",
+            "The {Credential} credential request for application {ApplicationId} is still {State} after {MaxCredentialWaitTimeInDays} day(s); failing the step for retrigger. The IssuerService most likely accepted the request without delivering it. Requested type was {ConfiguredCredentialType}.",
             credential,
             context.ApplicationId,
+            state,
             _settings.MaxCredentialWaitTimeInDays,
             configuredCredentialType);
 
@@ -86,7 +122,20 @@ public class IdentityHubCredentialAwaitBusinessLogic(
             Enumerable.Repeat(retriggerStepTypeId, 1),
             null,
             false,
-            $"No {credential} credential response was received within {_settings.MaxCredentialWaitTimeInDays} day(s)");
+            $"No {credential} credential was issued within {_settings.MaxCredentialWaitTimeInDays} day(s)");
+    }
+
+    private async Task<string> GetBusinessPartnerNumber(Guid applicationId)
+    {
+        var (exists, _, businessPartnerNumber, _) = await portalRepositories.GetInstance<IApplicationRepository>()
+            .GetBpnlCredentialIformationByApplicationId(applicationId).ConfigureAwait(ConfigureAwaitOptions.None);
+
+        if (!exists)
+        {
+            throw new NotFoundException($"CompanyApplication {applicationId} does not exist");
+        }
+
+        return businessPartnerNumber ?? throw new ConflictException("The bpn must be set");
     }
 
     private async Task<DateTimeOffset> GetWaitingSince(Guid applicationId, ProcessStepTypeId awaitStepTypeId)

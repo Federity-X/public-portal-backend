@@ -109,7 +109,7 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
             credentialDefinitionId,
             normalizedBpn);
 
-        var holderPid = $"{participantContextId}-{credentialType.ToLowerInvariant()}";
+        var holderPid = BuildHolderPid(participantContextId, credentialType);
         var body = new CredentialRequest(
             _settings.IssuerDid,
             holderPid,
@@ -121,6 +121,49 @@ public class IdentityHubService(HttpClient httpClient, IOptions<IdentityHubSetti
             $"request {credentialType} for BPN {normalizedBpn}",
             cancellationToken).ConfigureAwait(false);
     }
+
+    /// <inheritdoc />
+    public async Task<HolderCredentialRequestState> GetCredentialRequestStateAsync(string bpn, string credentialType, CancellationToken cancellationToken)
+    {
+        var participantContextId = NormalizeBpn(bpn).ToLowerInvariant();
+        var holderPid = BuildHolderPid(participantContextId, credentialType);
+
+        using var request = new HttpRequestMessage(HttpMethod.Get, $"v1alpha/participants/{participantContextId}/credentials/request/{holderPid}");
+        request.Headers.Add("x-api-key", _settings.ApiKey);
+
+        using var response = await httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            // Either the request was never created, or the participant context itself does not exist - the
+            // IdentityHub checks the context before looking the request up and answers 404 for both.
+            return HolderCredentialRequestState.NotFound;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+            throw new ServiceException($"IdentityHub credential request status for BPN {NormalizeBpn(bpn)} failed with status {response.StatusCode}: {content}", response.StatusCode);
+        }
+
+        var status = (await response.Content.ReadFromJsonAsync<HolderCredentialRequestResponse>(JsonOptions, cancellationToken).ConfigureAwait(false))?.Status;
+        return status switch
+        {
+            "ISSUED" => HolderCredentialRequestState.Issued,
+            "ERROR" => HolderCredentialRequestState.Failed,
+            // CREATED, REQUESTING and REQUESTED are all still in flight. Anything unrecognised is treated
+            // as in-flight too: a newer IdentityHub adding a state must not fail an application, and the
+            // wait is bounded anyway.
+            _ => HolderCredentialRequestState.Pending
+        };
+    }
+
+    /// <summary>
+    /// Primary key of the holder-credential-request store, so it must be unique per (participant,
+    /// credential type). Deterministic so a step retry is idempotent — and so the status lookup can
+    /// reconstruct the same id without persisting it.
+    /// </summary>
+    private static string BuildHolderPid(string participantContextId, string credentialType) =>
+        $"{participantContextId}-{credentialType.ToLowerInvariant()}";
 
     /// <summary>
     /// BPNs are canonically upper-case, and the Portal upper-cases them itself when correlating issuer
@@ -215,6 +258,10 @@ public record ServiceEndpoint(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("type")] string Type,
     [property: JsonPropertyName("serviceEndpoint")] string ServiceEndpointUrl);
+
+/// <summary>Subset of the IdentityHub's HolderCredentialRequestDto we act on. The DTO carries no errorDetail.</summary>
+public record HolderCredentialRequestResponse(
+    [property: JsonPropertyName("status")] string? Status);
 
 public record DidReference(
     [property: JsonPropertyName("id")] string Id);

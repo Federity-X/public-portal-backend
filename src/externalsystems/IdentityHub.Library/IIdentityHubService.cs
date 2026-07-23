@@ -51,4 +51,36 @@ public interface IIdentityHubService
     /// <param name="credentialDefinitionId">The issuer credential-definition id for that type.</param>
     /// <param name="cancellationToken">CancellationToken.</param>
     Task RequestCredentialAsync(string bpn, string credentialType, string credentialDefinitionId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Reads the state of the holder's credential request straight from the IdentityHub, so the Portal can
+    /// observe completion itself instead of depending solely on the holder-side callback being delivered.
+    /// <para>
+    /// <c>GET /v1alpha/participants/{participantContextId}/credentials/request/{holderPid}</c> — a direct
+    /// primary-key lookup on the deterministic holderPid this service already sends. Terminal requests are
+    /// retained indefinitely (no TTL or reaper), so a poll reliably finds a completion the callback missed.
+    /// </para>
+    /// </summary>
+    Task<HolderCredentialRequestState> GetCredentialRequestStateAsync(string bpn, string credentialType, CancellationToken cancellationToken);
+}
+
+/// <summary>
+/// The IdentityHub's <c>HolderRequestState</c>, collapsed to what the checklist needs to decide.
+/// </summary>
+public enum HolderCredentialRequestState
+{
+    /// <summary>No such request: our POST never landed, or it was removed out of band.</summary>
+    NotFound,
+
+    /// <summary>CREATED, REQUESTING or REQUESTED — still in flight. Three states, not one.</summary>
+    Pending,
+
+    /// <summary>ISSUED — the holder has the credential, whether or not the callback ever arrived.</summary>
+    Issued,
+
+    /// <summary>
+    /// ERROR — terminal. The IdentityHub's DTO carries no errorDetail, so the reason is not available here;
+    /// it has to be read from the holder's own logs.
+    /// </summary>
+    Failed
 }

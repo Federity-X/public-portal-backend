@@ -41,6 +41,9 @@ public class NotConfiguredIdentityHubService : IIdentityHubService, IDidDocument
     public Task RequestCredentialAsync(string bpn, string credentialType, string credentialDefinitionId, CancellationToken cancellationToken) =>
         throw new ConfigurationException(Message);
 
+    public Task<HolderCredentialRequestState> GetCredentialRequestStateAsync(string bpn, string credentialType, CancellationToken cancellationToken) =>
+        throw new ConfigurationException(Message);
+
     public int MaxValidationTimeInDays => throw new ConfigurationException(Message);
 
     public Task<bool> ValidateDid(string did, CancellationToken cancellationToken) =>
