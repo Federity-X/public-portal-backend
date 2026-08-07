@@ -29,6 +29,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.Notifications.Library;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Models;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
@@ -85,6 +86,7 @@ public class ApplicationActivationTests
     private readonly INotificationService _notificationService;
     private readonly IProvisioningManager _provisioningManager;
     private readonly ApplicationActivationSettings _settings;
+    private readonly IWalletProviderResolver _walletProviderResolver;
     private readonly ApplicationActivationService _sut;
     private readonly IDateTimeProvider _dateTimeProvider;
     private readonly ICustodianService _custodianService;
@@ -131,8 +133,9 @@ public class ApplicationActivationTests
         A.CallTo(() => portalRepositories.GetInstance<IPortalProcessStepRepository>()).Returns(_processStepRepository);
         A.CallTo(() => portalRepositories.GetInstance<IProcessStepRepository<ProcessTypeId, ProcessStepTypeId>>()).Returns(_processStepRepository);
         A.CallTo(() => options.Value).Returns(_settings);
+        _walletProviderResolver = A.Fake<IWalletProviderResolver>();
 
-        _sut = new ApplicationActivationService(portalRepositories, _notificationService, _provisioningManager, _dateTimeProvider, _custodianService, _bpdmService, _mailingProcessCreation, options);
+        _sut = new ApplicationActivationService(portalRepositories, _notificationService, _provisioningManager, _dateTimeProvider, _custodianService, _bpdmService, _mailingProcessCreation, options, _walletProviderResolver);
     }
 
     #endregion
@@ -550,7 +553,7 @@ public class ApplicationActivationTests
             Enumerable.Empty<ProcessStepTypeId>());
         A.CallTo(() => _applicationRepository.GetSharedIdpAliasseForApplicationId(Id))
             .Returns(Enumerable.Repeat("idp1", 1).ToAsyncEnumerable());
-        _settings.UseDimWallet = useDimWallet;
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(useDimWallet ? WalletProviderId.Dim : WalletProviderId.Custodian);
 
         //Act
         var result = await _sut.SetTheme(context, CancellationToken.None);

@@ -21,6 +21,7 @@ using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.Bpdm.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Bpdm.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Models;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
@@ -51,6 +52,7 @@ public class BpdmBusinessLogicTests
     private readonly BpdmBusinessLogic _logic;
     private readonly IPortalRepositories _portalRepositories;
     private readonly IOptions<BpdmServiceSettings> _options;
+    private readonly IWalletProviderResolver _walletProviderResolver;
 
     public BpdmBusinessLogicTests()
     {
@@ -64,11 +66,12 @@ public class BpdmBusinessLogicTests
         _companyRepository = A.Fake<ICompanyRepository>();
         _bpdmService = A.Fake<IBpdmService>();
         _options = A.Fake<IOptions<BpdmServiceSettings>>();
+        _walletProviderResolver = A.Fake<IWalletProviderResolver>();
 
         A.CallTo(() => _portalRepositories.GetInstance<IApplicationRepository>()).Returns(_applicationRepository);
         A.CallTo(() => _portalRepositories.GetInstance<ICompanyRepository>()).Returns(_companyRepository);
 
-        _logic = new BpdmBusinessLogic(_portalRepositories, _bpdmService, _options);
+        _logic = new BpdmBusinessLogic(_portalRepositories, _bpdmService, _options, _walletProviderResolver);
     }
 
     #endregion
@@ -239,10 +242,9 @@ public class BpdmBusinessLogicTests
             ClientSecret = "test",
             GrantType = "test",
             TokenAddress = "https://example.org/token",
-            UseDimWallet = false,
             StartSharingStateAsReady = startAsReady
         });
-        var logic = new BpdmBusinessLogic(_portalRepositories, _bpdmService, _options);
+        var logic = new BpdmBusinessLogic(_portalRepositories, _bpdmService, _options, _walletProviderResolver);
 
         // Act
         var result = await logic.PushLegalEntity(context, CancellationToken.None);
@@ -479,15 +481,14 @@ public class BpdmBusinessLogicTests
     }
 
     [Theory]
-    [InlineData(true, ProcessStepTypeId.CREATE_DIM_WALLET)]
-    [InlineData(false, ProcessStepTypeId.CREATE_IDENTITY_WALLET)]
-    public async Task HandlePullLegalEntity_WithValidData_ReturnsExpected(bool useDimWallet, ProcessStepTypeId processStepTypeId)
+    [InlineData(WalletProviderId.Dim, ProcessStepTypeId.CREATE_DIM_WALLET)]
+    [InlineData(WalletProviderId.Custodian, ProcessStepTypeId.CREATE_IDENTITY_WALLET)]
+    [InlineData(WalletProviderId.IdentityHub, ProcessStepTypeId.CREATE_IDENTITY_HUB_WALLET)]
+    public async Task HandlePullLegalEntity_WithValidData_ReturnsExpected(WalletProviderId walletProvider, ProcessStepTypeId processStepTypeId)
     {
         // Arrange
-        var options = Options.Create(new BpdmServiceSettings
-        {
-            UseDimWallet = useDimWallet
-        });
+        var options = Options.Create(new BpdmServiceSettings());
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(walletProvider);
         var company = new Company(Guid.NewGuid(), "Test Company", CompanyStatusId.ACTIVE, DateTimeOffset.UtcNow)
         {
             BusinessPartnerNumber = "1"
@@ -503,7 +504,7 @@ public class BpdmBusinessLogicTests
             .ToImmutableDictionary();
         var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(IdWithBpn, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
         SetupForHandlePullLegalEntity(company);
-        var logic = new BpdmBusinessLogic(_portalRepositories, _bpdmService, options);
+        var logic = new BpdmBusinessLogic(_portalRepositories, _bpdmService, options, _walletProviderResolver);
 
         // Act
         var result = await logic.HandlePullLegalEntity(context, CancellationToken.None);

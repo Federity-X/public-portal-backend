@@ -79,9 +79,6 @@ public class ApplicationActivationSettings
     [Required(AllowEmptyStrings = false)]
     public string DataspaceAddress { get; set; } = null!;
 
-    [Required]
-    public bool UseDimWallet { get; set; }
-
     public static bool Validate(ApplicationActivationSettings settings)
     {
         var startSet = settings.StartTime.HasValue;

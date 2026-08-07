@@ -35,6 +35,4 @@ public interface IDimBusinessLogic
     Task ProcessDimResponse(string bpn, DimWalletData data, CancellationToken cancellationToken);
 
     Task UpdateDidDocument(string bpn, DidDocumentData data, CancellationToken cancellationToken);
-
-    Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> ValidateDidDocument(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken);
 }

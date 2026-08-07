@@ -24,7 +24,9 @@ using Org.Eclipse.TractusX.Portal.Backend.Clearinghouse.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Custodian.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
+using Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
 using Org.Eclipse.TractusX.Portal.Backend.SdFactory.Library.BusinessLogic;
@@ -39,8 +41,12 @@ public class ApplicationChecklistHandlerService(
     IClearinghouseBusinessLogic clearinghouseBusinessLogic,
     ISdFactoryBusinessLogic sdFactoryBusinessLogic,
     IDimBusinessLogic dimBusinessLogic,
+    IIdentityHubBusinessLogic identityHubBusinessLogic,
     IIssuerComponentBusinessLogic issuerComponentBusinessLogic,
     IBpnDidResolverBusinessLogic bpnDidResolverBusinessLogic,
+    IDidDocumentValidationBusinessLogic didDocumentValidationBusinessLogic,
+    IIdentityHubCredentialAwaitBusinessLogic identityHubCredentialAwaitBusinessLogic,
+    IWalletProviderResolver walletProviderResolver,
     IApplicationActivationService applicationActivationService,
     IApplicationChecklistService checklistService) : IApplicationChecklistHandlerService
 {
@@ -49,7 +55,8 @@ public class ApplicationChecklistHandlerService(
         new(ProcessStepTypeId.CREATE_BUSINESS_PARTNER_NUMBER_PULL, new(ApplicationChecklistEntryTypeId.BUSINESS_PARTNER_NUMBER, false, bpdmBusinessLogic.HandlePullLegalEntity, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_BUSINESS_PARTNER_NUMBER_PULL))),
         new(ProcessStepTypeId.CREATE_IDENTITY_WALLET, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, custodianBusinessLogic.CreateIdentityWalletAsync, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_IDENTITY_WALLET))),
         new(ProcessStepTypeId.CREATE_DIM_WALLET, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, dimBusinessLogic.CreateDimWalletAsync, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_CREATE_DIM_WALLET))),
-        new(ProcessStepTypeId.VALIDATE_DID_DOCUMENT, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, dimBusinessLogic.ValidateDidDocument, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_VALIDATE_DID_DOCUMENT))),
+        new(ProcessStepTypeId.CREATE_IDENTITY_HUB_WALLET, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, identityHubBusinessLogic.CreateIdentityHubWalletAsync, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_CREATE_IDENTITY_HUB_WALLET))),
+        new(ProcessStepTypeId.VALIDATE_DID_DOCUMENT, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, didDocumentValidationBusinessLogic.ValidateDidDocument, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_VALIDATE_DID_DOCUMENT))),
         new(ProcessStepTypeId.TRANSMIT_BPN_DID, new(ApplicationChecklistEntryTypeId.IDENTITY_WALLET, true, bpnDidResolverBusinessLogic.TransmitDidAndBpn, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_TRANSMIT_DID_BPN))),
         new(ProcessStepTypeId.REQUEST_BPN_CREDENTIAL, new(ApplicationChecklistEntryTypeId.BPNL_CREDENTIAL, true, issuerComponentBusinessLogic.CreateBpnlCredential, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_REQUEST_BPN_CREDENTIAL))),
         new(ProcessStepTypeId.REQUEST_MEMBERSHIP_CREDENTIAL, new(ApplicationChecklistEntryTypeId.MEMBERSHIP_CREDENTIAL, true, issuerComponentBusinessLogic.CreateMembershipCredential, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_REQUEST_MEMBERSHIP_CREDENTIAL))),
@@ -64,7 +71,18 @@ public class ApplicationChecklistHandlerService(
         new(ProcessStepTypeId.SET_MEMBERSHIP, new(ApplicationChecklistEntryTypeId.APPLICATION_ACTIVATION, true, applicationActivationService.SetMembership, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_SET_MEMBERSHIP))),
         new(ProcessStepTypeId.SET_CX_MEMBERSHIP_IN_BPDM, new(ApplicationChecklistEntryTypeId.APPLICATION_ACTIVATION, true, applicationActivationService.SetCxMembership, (ex, _, _) => checklistService.HandleServiceErrorAsync(ex, ProcessStepTypeId.RETRIGGER_SET_CX_MEMBERSHIP_IN_BPDM))),
         new(ProcessStepTypeId.FINISH_APPLICATION_ACTIVATION, new(ApplicationChecklistEntryTypeId.APPLICATION_ACTIVATION, true, applicationActivationService.SaveApplicationActivationToDatabase, null))
-    ]);
+    ])
+        // The AWAIT_*_CREDENTIAL_RESPONSE steps are normally advanced by the issuer callback, not the
+        // worker, so they carry no executor and wait indefinitely. That is fine for the DIM issuer, which
+        // posts the callback itself. IdentityHub's callback comes from a separately deployed extension, so
+        // "it never arrives" is a realistic outcome - register a deadline for that provider only, leaving
+        // DIM and Custodian executing exactly the step set they always have.
+        .AddRange(walletProviderResolver.Provider == WalletProviderId.IdentityHub
+            ? [
+                new(ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE, new IApplicationChecklistHandlerService.ProcessStepExecution(ApplicationChecklistEntryTypeId.BPNL_CREDENTIAL, false, identityHubCredentialAwaitBusinessLogic.AwaitBpnCredentialResponse, null)),
+                new KeyValuePair<ProcessStepTypeId, IApplicationChecklistHandlerService.ProcessStepExecution>(ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE, new(ApplicationChecklistEntryTypeId.MEMBERSHIP_CREDENTIAL, false, identityHubCredentialAwaitBusinessLogic.AwaitMembershipCredentialResponse, null))
+            ]
+            : []);
 
     /// <inheritdoc />
     public IApplicationChecklistHandlerService.ProcessStepExecution GetProcessStepExecution(ProcessStepTypeId stepTypeId)

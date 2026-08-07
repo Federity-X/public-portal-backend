@@ -1,0 +1,152 @@
+/********************************************************************************
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation
+ *
+ * See the NOTICE file(s) distributed with this work for additional
+ * information regarding copyright ownership.
+ *
+ * This program and the accompanying materials are made available under the
+ * terms of the Apache License, Version 2.0 which is available at
+ * https://www.apache.org/licenses/LICENSE-2.0.
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
+ * under the License.
+ *
+ * SPDX-License-Identifier: Apache-2.0
+ ********************************************************************************/
+
+using System.ComponentModel.DataAnnotations;
+
+namespace Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library;
+
+/// <summary>
+/// Settings for driving the Tractus-X IdentityHub / IssuerService admin API when
+/// IdentityHub is the selected onboarding wallet (BE-293).
+/// See docs/onboarding/identityhub-wallet.md, in particular the cross-repository contract with the
+/// holder-side portal-credential-callback extension.
+/// </summary>
+public class IdentityHubSettings
+{
+    /// <summary>Base address of the IdentityHub Identity API (admin), e.g. http://identity-hub.tx.test/api/identity.</summary>
+    [Required(AllowEmptyStrings = false)]
+    public string BaseAddress { get; set; } = null!;
+
+    /// <summary>
+    /// Super-user API key for the IdentityHub admin API (sent as the <c>x-api-key</c> header).
+    /// Supplied via config/secret (not log-scraped) — see BE-293-2.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string ApiKey { get; set; } = null!;
+
+    /// <summary>
+    /// did:web base location the holder DID is built from, i.e. did:web:{DidDocumentBaseLocation}:{bpn}.
+    /// Must resolve via the universal resolver and be registered in BDRS.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string DidDocumentBaseLocation { get; set; } = null!;
+
+    /// <summary>
+    /// Universal resolver used by the VALIDATE_DID_DOCUMENT checklist step to confirm the holder's
+    /// did:web has been published. IdentityHub supplies its own so that a deployment using this wallet
+    /// does not have to configure a Dim section purely to reach a resolver.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string UniversalResolverAddress { get; set; } = null!;
+
+    /// <summary>
+    /// How long the holder's did:web may stay unresolvable before VALIDATE_DID_DOCUMENT fails and waits
+    /// for a manual retrigger. Mirrors Dim:MaxValidationTimeInDays.
+    /// <para>
+    /// Range, not Required: [Required] passes for a non-nullable int at 0, so an unset key would bind
+    /// to 0 and start cleanly, then fail VALIDATE_DID_DOCUMENT on its very first poll ("The validation
+    /// was aborted") because the deadline is dateCreated + 0 days. Fail at startup instead.
+    /// </para>
+    /// </summary>
+    [Range(1, int.MaxValue)]
+    public int MaxValidationTimeInDays { get; set; }
+
+    /// <summary>
+    /// How long an AWAIT_*_CREDENTIAL_RESPONSE step may wait for the holder-side callback before it is
+    /// failed for a manual retrigger.
+    /// <para>
+    /// Unlike the other IdentityHub settings this has a usable default, because a deployment that never
+    /// tunes it still needs the deadline: the callback comes from a separately deployed extension, so
+    /// "no callback ever arrives" is a realistic outcome and an unbounded wait parks the application
+    /// forever with nothing surfacing. One day is generous against a slow issuance or a brief IdentityHub
+    /// restart (whose replay re-delivers anyway) while still bounding the hang.
+    /// </para>
+    /// </summary>
+    [Range(1, int.MaxValue)]
+    public int MaxCredentialWaitTimeInDays { get; set; } = 1;
+
+    /// <summary>
+    /// Base address of the IdentityHub Credential Service API, used to build the holder's
+    /// CredentialService serviceEndpoint baked into its ParticipantContext, i.e.
+    /// {CredentialServiceBaseAddress}/v1/participants/{participantContextId}.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string CredentialServiceBaseAddress { get; set; } = null!;
+
+    /// <summary>Role assigned to the holder ParticipantContext (the seed uses ROLE_USER).</summary>
+    public string HolderRole { get; set; } = "ROLE_USER";
+
+    /// <summary>
+    /// DID of the IssuerService that issues the onboarding credentials, put into the holder's
+    /// <c>credentials/request</c> body as <c>issuerDid</c>.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string IssuerDid { get; set; } = null!;
+
+    /// <summary>VC format requested from the issuer (the seed uses VC1_0_JWT).</summary>
+    public string CredentialFormat { get; set; } = "VC1_0_JWT";
+
+    /// <summary>
+    /// VC type + issuer credential-definition id for the BPN(L) onboarding credential.
+    /// <para>
+    /// CROSS-REPO CONTRACT: the type string must match <c>tx.portal.callback.bpn.credential.type</c> in
+    /// the holder-side portal-credential-callback extension, which compares with an exact equals and
+    /// SILENTLY SKIPS on mismatch - the application then hangs in AWAIT_BPN_CREDENTIAL_RESPONSE with no
+    /// error on either side.
+    /// </para>
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string BpnCredentialType { get; set; } = "BpnCredential";
+
+    [Required(AllowEmptyStrings = false)]
+    public string BpnCredentialDefinitionId { get; set; } = null!;
+
+    /// <summary>
+    /// VC type + issuer credential-definition id for the Membership onboarding credential. Must match
+    /// <c>tx.portal.callback.membership.credential.type</c> - see <see cref="BpnCredentialType"/>.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string MembershipCredentialType { get; set; } = "MembershipCredential";
+
+    [Required(AllowEmptyStrings = false)]
+    public string MembershipCredentialDefinitionId { get; set; } = null!;
+
+    /// <summary>
+    /// IssuerService ADMIN API base (e.g. http://issuer-service-admin.tx.test/api/admin). The holder
+    /// must be registered here (POST /v1alpha/participants/{issuerCtx}/holders) before it can request
+    /// credentials, otherwise the DCP credential request is rejected with 401 "Participant not found".
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string IssuerAdminBaseAddress { get; set; } = null!;
+
+    /// <summary>IssuerService admin API key (its super-user key). Secret — pin it like the IH key.</summary>
+    [Required(AllowEmptyStrings = false)]
+    public string IssuerAdminApiKey { get; set; } = null!;
+
+    /// <summary>
+    /// The IssuerService's own participant-context id (e.g. issuer-bpnl00000003crhk). Used PLAIN in the
+    /// holder-registration URL path (POST {IssuerAdminBaseAddress}/v1alpha/participants/{IssuerParticipantId}/holders);
+    /// NOT base64-encoded (EDC 0.17.0 / IH #937) — a base64 value yields 404.
+    /// </summary>
+    [Required(AllowEmptyStrings = false)]
+    public string IssuerParticipantId { get; set; } = null!;
+
+    /// <summary>Framework-agreement contract version stamped into the holder registration properties.</summary>
+    public string FrameworkContractVersion { get; set; } = "1.0";
+}

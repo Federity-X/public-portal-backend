@@ -21,7 +21,6 @@ using Microsoft.Extensions.Options;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.Models;
-using Org.Eclipse.TractusX.Portal.Backend.Framework.DateTimeProvider;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Configuration;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Encryption;
@@ -52,7 +51,6 @@ public class DimBusinessLogicTests
     private readonly IDimBusinessLogic _logic;
     private readonly IOptions<DimSettings> _options;
     private readonly IApplicationChecklistService _checklistService;
-    private readonly IDateTimeProvider _dateTimeProvider;
     private readonly byte[] _encryptionKey;
 
     public DimBusinessLogicTests()
@@ -64,7 +62,6 @@ public class DimBusinessLogicTests
         _applicationRepository = A.Fake<IApplicationRepository>();
         _companyRepository = A.Fake<ICompanyRepository>();
         _dimService = A.Fake<IDimService>();
-        _dateTimeProvider = A.Fake<IDateTimeProvider>();
         _checklistService = A.Fake<IApplicationChecklistService>();
         _encryptionKey = _fixture.CreateMany<byte>(32).ToArray();
         _options = Options.Create(new DimSettings
@@ -77,7 +74,7 @@ public class DimBusinessLogicTests
         A.CallTo(() => portalRepository.GetInstance<IApplicationRepository>()).Returns(_applicationRepository);
         A.CallTo(() => portalRepository.GetInstance<ICompanyRepository>()).Returns(_companyRepository);
 
-        _logic = new DimBusinessLogic(portalRepository, _dimService, _checklistService, _dateTimeProvider, _options);
+        _logic = new DimBusinessLogic(portalRepository, _dimService, _checklistService, _options);
     }
 
     #endregion
@@ -401,167 +398,6 @@ public class DimBusinessLogicTests
            .MustHaveHappenedOnceExactly();
         A.CallTo(() => _checklistService.FinalizeProcessSteps(context, A<ProcessStepStatusId>._, A<string>._, A<IEnumerable<ProcessStepTypeId>>._))
             .MustNotHaveHappened();
-    }
-
-    #endregion
-
-    #region ValidateDidDocument
-
-    [Fact]
-    public async Task ValidateDidDocument_WithProcessInTodo_ProcessFails()
-    {
-        // Arrange
-        var checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
-            {
-                { ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.TO_DO },
-            }
-            .ToImmutableDictionary();
-        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(ApplicationId, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
-
-        // Act
-        var result = await _logic.ValidateDidDocument(context, CancellationToken.None);
-
-        // Assert
-        result.StepStatusId.Should().Be(ProcessStepStatusId.FAILED);
-    }
-
-    [Fact]
-    public async Task ValidateDidDocument_WithoutApplication_ThrowsNotFoundException()
-    {
-        // Arrange
-        var checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
-            {
-                { ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.IN_PROGRESS },
-            }
-            .ToImmutableDictionary();
-        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(ApplicationId, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
-        A.CallTo(() => _applicationRepository.GetDidApplicationId(ApplicationId))
-            .Returns((false, null, Enumerable.Empty<DateTimeOffset>()));
-        async Task Act() => await _logic.ValidateDidDocument(context, CancellationToken.None);
-
-        // Act
-        var ex = await Assert.ThrowsAsync<NotFoundException>(Act);
-
-        // Assert
-        ex.Message.Should().Be($"CompanyApplication {ApplicationId} does not exist");
-    }
-
-    [Fact]
-    public async Task ValidateDidDocument_WitEmptyDid_ThrowsConflictException()
-    {
-        // Arrange
-        var checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
-            {
-                { ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.IN_PROGRESS },
-            }
-            .ToImmutableDictionary();
-        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(ApplicationId, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
-        A.CallTo(() => _applicationRepository.GetDidApplicationId(ApplicationId))
-            .Returns((true, null, Enumerable.Empty<DateTimeOffset>()));
-        async Task Act() => await _logic.ValidateDidDocument(context, CancellationToken.None);
-
-        // Act
-        var ex = await Assert.ThrowsAsync<ConflictException>(Act);
-
-        // Assert
-        ex.Message.Should().Be("There must be a did set");
-    }
-
-    [Fact]
-    public async Task ValidateDidDocument_WithoutProcess_ThrowsConflictException()
-    {
-        // Arrange
-        const string did = "did:web:123";
-        var checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
-            {
-                { ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.IN_PROGRESS },
-            }
-            .ToImmutableDictionary();
-        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(ApplicationId, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
-        A.CallTo(() => _applicationRepository.GetDidApplicationId(ApplicationId))
-            .Returns((true, did, Enumerable.Empty<DateTimeOffset>()));
-        A.CallTo(() => _dimService.ValidateDid(did, A<CancellationToken>._)).Returns(false);
-        async Task Act() => await _logic.ValidateDidDocument(context, CancellationToken.None);
-
-        // Act
-        var ex = await Assert.ThrowsAsync<ConflictException>(Act);
-
-        // Assert
-        ex.Message.Should().Be($"There must be excatly on active {ProcessStepTypeId.VALIDATE_DID_DOCUMENT}");
-    }
-
-    [Fact]
-    public async Task ValidateDidDocument_WithInvalidDid_ProcessStaysInTodo()
-    {
-        // Arrange
-        const string did = "did:web:123";
-        var checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
-        {
-            { ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.IN_PROGRESS },
-        }.ToImmutableDictionary();
-        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(ApplicationId, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
-        var now = DateTimeOffset.UtcNow;
-        A.CallTo(() => _dateTimeProvider.OffsetNow).Returns(now);
-        A.CallTo(() => _applicationRepository.GetDidApplicationId(ApplicationId))
-            .Returns((true, did, Enumerable.Repeat(now, 1)));
-        A.CallTo(() => _dimService.ValidateDid(did, A<CancellationToken>._)).Returns(false);
-
-        // Act
-        var result = await _logic.ValidateDidDocument(context, CancellationToken.None);
-
-        // Assert
-        result.StepStatusId.Should().Be(ProcessStepStatusId.TODO);
-        result.ScheduleStepTypeIds.Should().BeNull();
-        result.ProcessMessage.Should().BeNull();
-    }
-
-    [Fact]
-    public async Task ValidateDidDocument_WithCreatedOutsideMaxTime_ProcessFailed()
-    {
-        // Arrange
-        const string did = "did:web:123";
-        var checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
-        {
-            { ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.IN_PROGRESS },
-        }.ToImmutableDictionary();
-        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(ApplicationId, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
-        var now = DateTimeOffset.UtcNow;
-        A.CallTo(() => _dateTimeProvider.OffsetNow).Returns(now);
-        A.CallTo(() => _applicationRepository.GetDidApplicationId(ApplicationId))
-            .Returns((true, did, Enumerable.Repeat(now.AddDays(-8), 1)));
-        A.CallTo(() => _dimService.ValidateDid(did, A<CancellationToken>._)).Returns(false);
-
-        // Act
-        var result = await _logic.ValidateDidDocument(context, CancellationToken.None);
-
-        // Assert
-        result.StepStatusId.Should().Be(ProcessStepStatusId.FAILED);
-        result.ScheduleStepTypeIds.Should().ContainSingle(x => x == ProcessStepTypeId.RETRIGGER_VALIDATE_DID_DOCUMENT);
-        result.ProcessMessage.Should().Be("The validation was aborted");
-    }
-
-    [Fact]
-    public async Task ValidateDidDocument_WithValidDid_ProcessDone()
-    {
-        // Arrange
-        const string did = "did:web:123";
-        var checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
-        {
-            { ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.IN_PROGRESS },
-        }.ToImmutableDictionary();
-        var now = DateTimeOffset.Now;
-        A.CallTo(() => _dateTimeProvider.OffsetNow).Returns(now);
-        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(ApplicationId, default, checklist, Enumerable.Empty<ProcessStepTypeId>());
-        A.CallTo(() => _applicationRepository.GetDidApplicationId(ApplicationId))
-            .Returns((true, did, Enumerable.Repeat(now, 1)));
-        A.CallTo(() => _dimService.ValidateDid(did, A<CancellationToken>._)).Returns(true);
-
-        // Act
-        var result = await _logic.ValidateDidDocument(context, CancellationToken.None);
-
-        // Assert
-        result.StepStatusId.Should().Be(ProcessStepStatusId.DONE);
-        result.ScheduleStepTypeIds.Should().ContainSingle().Which.Should().Be(ProcessStepTypeId.TRANSMIT_BPN_DID);
     }
 
     #endregion

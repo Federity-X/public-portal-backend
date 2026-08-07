@@ -23,6 +23,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.ErrorHandling.Service;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Extensions;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Token;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Config;
 using Org.Eclipse.TractusX.Portal.Backend.Processes.Mailing.Library.DependencyInjection;
@@ -45,6 +46,7 @@ await WebAppHelper
 
         builder.Services
             .AddPortalRepositories(builder.Configuration)
+            .AddOnboardingWallet(builder.Configuration)
             .AddProvisioningManager(builder.Configuration);
 
         builder.Services.AddTransient<IUserProvisioningService, UserProvisioningService>();
@@ -53,7 +55,7 @@ await WebAppHelper
             .AddTransient<IIdentityProviderProvisioningService, IdentityProviderProvisioningService>()
             .ConfigureRegistrationSettings(builder.Configuration.GetSection("Registration"))
             .AddTransient<INetworkBusinessLogic, NetworkBusinessLogic>();
-        builder.Services.AddApplicationChecklistCreation(builder.Configuration.GetSection("ApplicationCreation"));
+        builder.Services.AddApplicationChecklistCreation();
         builder.Services
             .AddSingleton<IErrorMessageService, ErrorMessageService>()
             .AddSingleton<IErrorMessageContainer, RegistrationValidationErrorMessageContainer>()

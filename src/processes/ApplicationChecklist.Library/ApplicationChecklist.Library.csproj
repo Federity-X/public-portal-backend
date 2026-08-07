@@ -30,6 +30,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\..\portalbackend\PortalBackend.DBAccess\PortalBackend.DBAccess.csproj" />
+      <ProjectReference Include="..\..\onboarding\Onboarding.WalletProvider\Onboarding.WalletProvider.csproj" />
     </ItemGroup>
 
 </Project>

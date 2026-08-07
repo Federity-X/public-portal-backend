@@ -27,6 +27,7 @@ using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Service;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Models;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
@@ -49,6 +50,8 @@ public class IssuerComponentBusinessLogicTests
     private readonly IPortalRepositories _portalRepositories;
 
     private readonly IIssuerComponentService _issuerComponentService;
+    private readonly IIssuerComponentServiceSelector _issuerComponentServiceSelector;
+    private readonly IWalletProviderResolver _walletProviderResolver;
     private readonly IApplicationChecklistService _checklistService;
     private readonly IIssuerComponentBusinessLogic _sut;
     private readonly IOptions<IssuerComponentSettings> _options;
@@ -65,7 +68,12 @@ public class IssuerComponentBusinessLogicTests
         _companyRepository = A.Fake<ICompanyRepository>();
         _portalRepositories = A.Fake<IPortalRepositories>();
         _issuerComponentService = A.Fake<IIssuerComponentService>();
+        _issuerComponentServiceSelector = A.Fake<IIssuerComponentServiceSelector>();
+        _walletProviderResolver = A.Fake<IWalletProviderResolver>();
         _checklistService = A.Fake<IApplicationChecklistService>();
+
+        // The selector resolves to the DIM/ssi issuer-component service for whatever provider is selected.
+        A.CallTo(() => _issuerComponentServiceSelector.GetForProvider(A<WalletProviderId>._)).Returns(_issuerComponentService);
 
         A.CallTo(() => _portalRepositories.GetInstance<IApplicationRepository>()).Returns(_applicationRepository);
         A.CallTo(() => _portalRepositories.GetInstance<ICompanyRepository>()).Returns(_companyRepository);
@@ -93,7 +101,7 @@ public class IssuerComponentBusinessLogicTests
                 },
             }
         });
-        _sut = new IssuerComponentBusinessLogic(_portalRepositories, _issuerComponentService, _checklistService, _options);
+        _sut = new IssuerComponentBusinessLogic(_portalRepositories, _issuerComponentServiceSelector, _checklistService, _options, _walletProviderResolver);
     }
 
     #region CreateBpnlCredential
@@ -769,6 +777,92 @@ public class IssuerComponentBusinessLogicTests
         A.CallTo(() => _issuerComponentService.CreateFrameworkCredential(A<CreateFrameworkCredentialRequest>._, A<string>._, A<CancellationToken>._))
             .MustNotHaveHappened();
         ex.Message.Should().Be("The wallet information must be set");
+    }
+
+    #endregion
+
+    #region HolderRequestsOwnCredentials
+
+    // An issuer whose holder pulls its own credentials over DCP (IdentityHub) never receives
+    // technical-user details, and the holder's wallet row deliberately stores placeholder bytes
+    // instead of an encrypted secret. Decrypting those throws (a 1-byte IV is not a valid AES IV),
+    // so the business logic must not even attempt it.
+
+    [Fact]
+    public async Task CreateBpnlCredential_WhenHolderRequestsOwnCredentials_SendsNoTechnicalUserDetails()
+    {
+        // Arrange
+        SetupHolderPullIssuerWithPlaceholderWalletSecret(out var checklist);
+        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(IdWithBpn, ProcessStepTypeId.REQUEST_BPN_CREDENTIAL, checklist.ToImmutableDictionary(), Enumerable.Empty<ProcessStepTypeId>());
+
+        // Act
+        var result = await _sut.CreateBpnlCredential(context, CancellationToken.None);
+
+        // Assert
+        A.CallTo(() => _issuerComponentService
+            .CreateBpnlCredential(
+                A<CreateBpnCredentialRequest>.That.Matches(x =>
+                    x.BusinessPartnerNumber == ValidBpn &&
+                    x.TechnicalUserDetails == null),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        result.StepStatusId.Should().Be(ProcessStepStatusId.DONE);
+        result.ScheduleStepTypeIds.Should().ContainSingle().Which.Should().Be(ProcessStepTypeId.AWAIT_BPN_CREDENTIAL_RESPONSE);
+    }
+
+    [Fact]
+    public async Task CreateMembershipCredential_WhenHolderRequestsOwnCredentials_SendsNoTechnicalUserDetails()
+    {
+        // Arrange
+        SetupHolderPullIssuerWithPlaceholderWalletSecret(out var checklist);
+        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(IdWithBpn, ProcessStepTypeId.REQUEST_MEMBERSHIP_CREDENTIAL, checklist.ToImmutableDictionary(), Enumerable.Empty<ProcessStepTypeId>());
+
+        // Act
+        var result = await _sut.CreateMembershipCredential(context, CancellationToken.None);
+
+        // Assert
+        A.CallTo(() => _issuerComponentService
+            .CreateMembershipCredential(
+                A<CreateMembershipCredentialRequest>.That.Matches(x =>
+                    x.HolderBpn == ValidBpn &&
+                    x.TechnicalUserDetails == null),
+                A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+        result.StepStatusId.Should().Be(ProcessStepStatusId.DONE);
+        result.ScheduleStepTypeIds.Should().ContainSingle().Which.Should().Be(ProcessStepTypeId.AWAIT_MEMBERSHIP_CREDENTIAL_RESPONSE);
+    }
+
+    [Fact]
+    public async Task CreateBpnlCredential_WhenHolderRequestsOwnCredentials_DoesNotRequireWalletInformation()
+    {
+        // Arrange
+        SetupHolderPullIssuerWithPlaceholderWalletSecret(out var checklist);
+        A.CallTo(() => _applicationRepository.GetBpnlCredentialIformationByApplicationId(A<Guid>._))
+            .Returns((true, "did:123:testabc", ValidBpn, (WalletInformation?)null));
+        var context = new IApplicationChecklistService.WorkerChecklistProcessStepData(IdWithBpn, ProcessStepTypeId.REQUEST_BPN_CREDENTIAL, checklist.ToImmutableDictionary(), Enumerable.Empty<ProcessStepTypeId>());
+
+        // Act
+        var result = await _sut.CreateBpnlCredential(context, CancellationToken.None);
+
+        // Assert
+        result.StepStatusId.Should().Be(ProcessStepStatusId.DONE);
+        A.CallTo(() => _issuerComponentService.CreateBpnlCredential(A<CreateBpnCredentialRequest>._, A<CancellationToken>._))
+            .MustHaveHappenedOnceExactly();
+    }
+
+    private void SetupHolderPullIssuerWithPlaceholderWalletSecret(out Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId> checklist)
+    {
+        checklist = new Dictionary<ApplicationChecklistEntryTypeId, ApplicationChecklistEntryStatusId>
+        {
+            {ApplicationChecklistEntryTypeId.REGISTRATION_VERIFICATION, ApplicationChecklistEntryStatusId.DONE},
+            {ApplicationChecklistEntryTypeId.BUSINESS_PARTNER_NUMBER, ApplicationChecklistEntryStatusId.DONE},
+            {ApplicationChecklistEntryTypeId.IDENTITY_WALLET, ApplicationChecklistEntryStatusId.DONE},
+            {ApplicationChecklistEntryTypeId.BPNL_CREDENTIAL, ApplicationChecklistEntryStatusId.TO_DO}
+        };
+        A.CallTo(() => _issuerComponentService.HolderRequestsOwnCredentials).Returns(true);
+        // Exactly what CompanyRepository.CreateCustomerWallet persists for a Portal-managed holder.
+        A.CallTo(() => _applicationRepository.GetBpnlCredentialIformationByApplicationId(A<Guid>._))
+            .Returns((true, "did:123:testabc", ValidBpn, new WalletInformation(BringYourOwnWalletClientFields.NotUsed, new byte[1], new byte[1], 0, "https://example.com/wallet")));
     }
 
     #endregion

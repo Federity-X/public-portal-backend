@@ -528,6 +528,16 @@ public class ApplicationRepository(PortalDbContext portalDbContext)
                     .Select(ps => ps.DateCreated)))
             .SingleOrDefaultAsync();
 
+    public Task<IEnumerable<DateTimeOffset>> GetActiveProcessStepsDateCreated(Guid applicationId, ProcessStepTypeId processStepTypeId) =>
+        portalDbContext.CompanyApplications
+            .Where(ca => ca.Id == applicationId)
+            .Select(ca => ca.ChecklistProcess!.ProcessSteps
+                .Where(ps =>
+                    ps.ProcessStepTypeId == processStepTypeId &&
+                    ps.ProcessStepStatusId == ProcessStepStatusId.TODO)
+                .Select(ps => ps.DateCreated))
+            .SingleOrDefaultAsync()!;
+
     public Task<(bool Exists, string? Holder, string? BusinessPartnerNumber, WalletInformation? WalletInformation)> GetBpnlCredentialIformationByApplicationId(Guid applicationId) =>
         portalDbContext.CompanyApplications
             .Where(ca => ca.Id == applicationId)

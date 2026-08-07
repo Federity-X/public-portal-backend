@@ -1,5 +1,5 @@
 /********************************************************************************
- * Copyright (c) 2024 Contributors to the Eclipse Foundation
+ * Copyright (c) 2026 Contributors to the Eclipse Foundation
  *
  * See the NOTICE file(s) distributed with this work for additional
  * information regarding copyright ownership.
@@ -17,26 +17,16 @@
  * SPDX-License-Identifier: Apache-2.0
  ********************************************************************************/
 
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Validation;
+using Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
 
-namespace Org.Eclipse.TractusX.Portal.Backend.Processes.ApplicationChecklist.Library;
+namespace Org.Eclipse.TractusX.Portal.Backend.IdentityHub.Library.BusinessLogic;
 
-public class ApplicationChecklistSettings
+public interface IIdentityHubBusinessLogic
 {
-    public bool UseDimWallet { get; set; }
-}
-
-public static class ApplicationChecklistSettingsExtension
-{
-    public static IServiceCollection ConfigureApplicationChecklistSettings(
-        this IServiceCollection services,
-        IConfigurationSection section)
-    {
-        services.AddOptions<ApplicationChecklistSettings>()
-            .Bind(section)
-            .EnvironmentalValidation(section);
-        return services;
-    }
+    /// <summary>
+    /// Provisions the company's managed IdentityHub holder wallet (ParticipantContext + did:web)
+    /// for the application, then hands off to the existing VALIDATE_DID_DOCUMENT chain.
+    /// The IdentityHub counterpart of the Custodian/DIM wallet-creation steps (BE-293).
+    /// </summary>
+    Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> CreateIdentityHubWalletAsync(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken);
 }

@@ -34,6 +34,9 @@ public class IssuerComponentService(ITokenService tokenService, IHttpClientFacto
     private static readonly JsonSerializerOptions Options = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     private readonly IssuerComponentSettings _settings = options.Value;
 
+    /// <inheritdoc />
+    public bool HolderRequestsOwnCredentials => false;
+
     public async Task<bool> CreateBpnlCredential(CreateBpnCredentialRequest data, CancellationToken cancellationToken)
     {
         using var httpClient = await tokenService.GetAuthorizedClient<IssuerComponentService>(_settings, cancellationToken).ConfigureAwait(false);

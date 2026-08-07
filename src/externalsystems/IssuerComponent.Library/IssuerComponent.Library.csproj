@@ -32,6 +32,7 @@
     <ProjectReference Include="..\..\framework\Framework.Token\Framework.Token.csproj" />
     <ProjectReference Include="..\..\portalbackend\PortalBackend.DBAccess\PortalBackend.DBAccess.csproj" />
     <ProjectReference Include="..\..\processes\ApplicationChecklist.Library\ApplicationChecklist.Library.csproj" />
+    <ProjectReference Include="..\..\onboarding\Onboarding.WalletProvider\Onboarding.WalletProvider.csproj" />
   </ItemGroup>
 
   <ItemGroup>

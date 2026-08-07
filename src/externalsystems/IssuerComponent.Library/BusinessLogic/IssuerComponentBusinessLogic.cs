@@ -24,6 +24,7 @@ using Org.Eclipse.TractusX.Portal.Backend.Framework.Processes.Library.Enums;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.DependencyInjection;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Models;
 using Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.Service;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
@@ -33,12 +34,15 @@ namespace Org.Eclipse.TractusX.Portal.Backend.IssuerComponent.Library.BusinessLo
 
 public class IssuerComponentBusinessLogic(
     IPortalRepositories repositories,
-    IIssuerComponentService service,
+    IIssuerComponentServiceSelector serviceSelector,
     IApplicationChecklistService checklistService,
-    IOptions<IssuerComponentSettings> options)
+    IOptions<IssuerComponentSettings> options,
+    IWalletProviderResolver walletProviderResolver)
     : IIssuerComponentBusinessLogic
 {
     private readonly IssuerComponentSettings _settings = options.Value;
+
+    private IIssuerComponentService Service => serviceSelector.GetForProvider(walletProviderResolver.Provider);
 
     public async Task<IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult> CreateBpnlCredential(IApplicationChecklistService.WorkerChecklistProcessStepData context, CancellationToken cancellationToken)
     {
@@ -60,17 +64,10 @@ public class IssuerComponentBusinessLogic(
             throw new ConflictException("The bpn must be set");
         }
 
-        if (walletInformation is null)
-        {
-            throw new ConflictException("The wallet information must be set");
-        }
-
-        var secret = GetDecriptedSecret(walletInformation, isBringYourOwnWallet);
+        var service = Service;
+        var technicalUserDetails = GetTechnicalUserDetails(walletInformation, isBringYourOwnWallet, service.HolderRequestsOwnCredentials);
         var callbackUrl = $"{_settings.CallbackBaseUrl}/api/administration/registration/issuer/bpncredential";
-        var data = new CreateBpnCredentialRequest(holder, businessPartnerNumber,
-            isBringYourOwnWallet
-                ? null
-                : new TechnicalUserDetails(walletInformation.WalletUrl, walletInformation.ClientId, secret), callbackUrl);
+        var data = new CreateBpnCredentialRequest(holder, businessPartnerNumber, technicalUserDetails, callbackUrl);
 
         await service.CreateBpnlCredential(data, cancellationToken).ConfigureAwait(false);
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
@@ -85,16 +82,32 @@ public class IssuerComponentBusinessLogic(
             null);
     }
 
-    private string GetDecriptedSecret(PortalBackend.DBAccess.Models.WalletInformation walletInformation, bool isBringYourOwnWallet)
+    /// <summary>
+    /// Builds the holder technical-user details the issuer acts with, or null when the issuer does not
+    /// act on the holder's behalf. Gathering them is invalid when
+    /// <see cref="IIssuerComponentService.HolderRequestsOwnCredentials"/>: such a holder stores
+    /// placeholder bytes instead of an encrypted secret, and decrypting those would throw.
+    /// </summary>
+    private TechnicalUserDetails? GetTechnicalUserDetails(PortalBackend.DBAccess.Models.WalletInformation? walletInformation, bool isBringYourOwnWallet, bool holderRequestsOwnCredentials)
     {
+        if (holderRequestsOwnCredentials)
+        {
+            return null;
+        }
+
+        if (walletInformation is null)
+        {
+            throw new ConflictException("The wallet information must be set");
+        }
+
         if (isBringYourOwnWallet)
         {
-            return string.Empty;
+            return null;
         }
 
         var cryptoConfig = _settings.EncryptionConfigs.SingleOrDefault(x => x.Index == walletInformation.EncryptionMode) ?? throw new ConfigurationException($"EncryptionModeIndex {walletInformation.EncryptionMode} is not configured");
-        return CryptoHelper.Decrypt(walletInformation.ClientSecret, walletInformation.InitializationVector, Convert.FromHexString(cryptoConfig.EncryptionKey), cryptoConfig.CipherMode, cryptoConfig.PaddingMode);
-
+        var secret = CryptoHelper.Decrypt(walletInformation.ClientSecret, walletInformation.InitializationVector, Convert.FromHexString(cryptoConfig.EncryptionKey), cryptoConfig.CipherMode, cryptoConfig.PaddingMode);
+        return new TechnicalUserDetails(walletInformation.WalletUrl, walletInformation.ClientId, secret);
     }
 
     public async Task StoreBpnlCredentialResponse(Guid applicationId, IssuerResponseData data)
@@ -143,18 +156,11 @@ public class IssuerComponentBusinessLogic(
             throw new ConflictException("The bpn must be set");
         }
 
-        if (walletInformation is null)
-        {
-            throw new ConflictException("The wallet information must be set");
-        }
-
-        var secret = GetDecriptedSecret(walletInformation, isBringYourOwnWallet);
+        var service = Service;
+        var technicalUserDetails = GetTechnicalUserDetails(walletInformation, isBringYourOwnWallet, service.HolderRequestsOwnCredentials);
         var callbackUrl = $"{_settings.CallbackBaseUrl}/api/administration/registration/issuer/membershipcredential";
 
-        var data = new CreateMembershipCredentialRequest(holder, businessPartnerNumber, "catena-x",
-            isBringYourOwnWallet
-                ? null
-                : new TechnicalUserDetails(walletInformation.WalletUrl, walletInformation.ClientId, secret), callbackUrl);
+        var data = new CreateMembershipCredentialRequest(holder, businessPartnerNumber, "catena-x", technicalUserDetails, callbackUrl);
 
         await service.CreateMembershipCredential(data, cancellationToken).ConfigureAwait(false);
         return new IApplicationChecklistService.WorkerChecklistProcessStepExecutionResult(
@@ -209,17 +215,10 @@ public class IssuerComponentBusinessLogic(
             throw new ConflictException("The bpn must be set");
         }
 
-        if (walletInformation is null)
-        {
-            throw new ConflictException("The wallet information must be set");
-        }
+        var service = Service;
+        var technicalUserDetails = GetTechnicalUserDetails(walletInformation, isBringYourOwnWallet, service.HolderRequestsOwnCredentials);
 
-        var secret = GetDecriptedSecret(walletInformation, isBringYourOwnWallet);
-
-        var data = new CreateFrameworkCredentialRequest(holder, businessPartnerNumber, frameworkId, useCaseFrameworkVersionId,
-            isBringYourOwnWallet
-                ? null :
-            new TechnicalUserDetails(walletInformation.WalletUrl, walletInformation.ClientId, secret), null);
+        var data = new CreateFrameworkCredentialRequest(holder, businessPartnerNumber, frameworkId, useCaseFrameworkVersionId, technicalUserDetails, null);
         return await service.CreateFrameworkCredential(data, token, cancellationToken).ConfigureAwait(false);
     }
 }

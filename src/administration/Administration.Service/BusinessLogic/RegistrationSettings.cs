@@ -38,8 +38,6 @@ public class RegistrationSettings
 
     [Required(AllowEmptyStrings = false)]
     public string HelpAddress { get; set; } = null!;
-
-    public bool UseDimWallet { get; set; }
 }
 
 public static class RegistrationSettingsExtension

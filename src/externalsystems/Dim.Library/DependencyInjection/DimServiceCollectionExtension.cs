@@ -20,9 +20,11 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Org.Eclipse.TractusX.Portal.Backend.BpnDidResolver.Library;
 using Org.Eclipse.TractusX.Portal.Backend.Dim.Library.BusinessLogic;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.HttpClientExtensions;
 using Org.Eclipse.TractusX.Portal.Backend.Framework.Models.Validation;
+using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
 
 namespace Org.Eclipse.TractusX.Portal.Backend.Dim.Library.DependencyInjection;
 
@@ -45,6 +47,12 @@ public static class DimServiceCollectionExtension
         services
             .AddTransient<IDimService, DimService>()
             .AddTransient<IDimBusinessLogic, DimBusinessLogic>();
+
+        // DID resolution for VALIDATE_DID_DOCUMENT. Custodian has no resolver settings of its own and
+        // has always validated through the Dim section, so it keeps pointing here - behaviour for both
+        // providers is unchanged.
+        services.AddKeyedTransient<IDidDocumentResolver, DimDidDocumentResolver>(WalletProviderId.Dim);
+        services.AddKeyedTransient<IDidDocumentResolver, DimDidDocumentResolver>(WalletProviderId.Custodian);
 
         return services;
     }

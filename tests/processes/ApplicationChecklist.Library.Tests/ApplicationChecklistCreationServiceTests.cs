@@ -18,6 +18,7 @@
  ********************************************************************************/
 
 using Microsoft.Extensions.Options;
+using Org.Eclipse.TractusX.Portal.Backend.Onboarding.WalletProvider;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.DBAccess.Repositories;
 using Org.Eclipse.TractusX.Portal.Backend.PortalBackend.PortalEntities.Enums;
@@ -33,8 +34,7 @@ public class ChecklistCreationServiceTests
     private readonly IApplicationRepository _applicationRepository;
     private readonly IApplicationChecklistRepository _applicationChecklistRepository;
     private readonly IApplicationChecklistCreationService _service;
-    private readonly IOptions<ApplicationChecklistSettings> _options;
-    private readonly ApplicationChecklistSettings _settings;
+    private readonly IWalletProviderResolver _walletProviderResolver;
 
     public ChecklistCreationServiceTests()
     {
@@ -48,11 +48,9 @@ public class ChecklistCreationServiceTests
         _applicationRepository = A.Fake<IApplicationRepository>();
         _applicationChecklistRepository = A.Fake<IApplicationChecklistRepository>();
 
-        _settings = A.Fake<ApplicationChecklistSettings>();
-        _options = A.Fake<IOptions<ApplicationChecklistSettings>>();
-        A.CallTo(() => _options.Value).Returns(_settings);
+        _walletProviderResolver = A.Fake<IWalletProviderResolver>();
 
-        _service = new ApplicationChecklistCreationService(_portalRepositories, _options);
+        _service = new ApplicationChecklistCreationService(_portalRepositories, _walletProviderResolver);
     }
 
     #region CreateInitialChecklistAsync
@@ -123,8 +121,8 @@ public class ChecklistCreationServiceTests
     {
         // Arrange
         SetupFakesForCreate();
-        A.CallTo(() => _options.Value).Returns(new ApplicationChecklistSettings() { UseDimWallet = true });
-        IApplicationChecklistCreationService service = new ApplicationChecklistCreationService(_portalRepositories, _options);
+        A.CallTo(() => _walletProviderResolver.Provider).Returns(WalletProviderId.Dim);
+        IApplicationChecklistCreationService service = new ApplicationChecklistCreationService(_portalRepositories, _walletProviderResolver);
 
         // Act
         var result = await service.CreateInitialChecklistAsync(ApplicationWithoutBpnId);
