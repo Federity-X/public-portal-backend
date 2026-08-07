@@ -41,6 +41,8 @@ public static class IdentityHubServiceCollectionExtension
         // (a DIM/Custodian-only stack) we register guards instead of placeholder addresses, so a
         // CREATE_IDENTITY_HUB_WALLET step accidentally scheduled here (WalletProvider=IdentityHub without the
         // matching config) fails immediately with a clear, actionable error rather than an obscure DNS error.
+        // NOTE: for this gate to signal intent, appsettings.json must NOT ship an all-empty IdentityHub
+        // section — the umbrella supplies these keys only when identityHub.enabled (worker + administration).
         if (section.Exists() && section.GetChildren().Any())
         {
             options.EnvironmentalValidation(section);

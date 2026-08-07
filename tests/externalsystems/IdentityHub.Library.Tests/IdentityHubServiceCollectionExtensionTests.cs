@@ -93,6 +93,22 @@ public class IdentityHubServiceCollectionExtensionTests
             .Should().BeOfType<NotConfiguredIdentityHubService>();
     }
 
+    [Fact]
+    public void WithAnEmptySection_DoesNotFailValidation()
+    {
+        // BE-324 regression: appsettings.json ships "ApplicationChecklist:IdentityHub": {} so a
+        // DIM/Custodian/stub deployment (which supplies no IdentityHub env) stays inert. An all-empty
+        // section must resolve the guard WITHOUT running ValidateOnStart — a section shipped with every
+        // key present-but-empty previously tripped the presence-gate and crashed admin + worker at startup.
+        var configuration = new ConfigurationBuilder().Build();
+        var sut = new ServiceCollection()
+            .AddIdentityHubService(configuration.GetSection("IdentityHub"))
+            .BuildServiceProvider();
+
+        sut.Invoking(s => s.GetRequiredService<IOptions<IdentityHubSettings>>().Value).Should().NotThrow();
+        sut.GetRequiredService<IIdentityHubService>().Should().BeOfType<NotConfiguredIdentityHubService>();
+    }
+
     [Theory]
     [InlineData("IdentityHub:UniversalResolverAddress")]
     [InlineData("IdentityHub:BaseAddress")]
